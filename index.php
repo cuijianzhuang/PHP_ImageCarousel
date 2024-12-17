@@ -38,21 +38,43 @@ if (is_dir($directory)) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>首页展示</title>
     <style>
-        html, body {
+        :root {
+            --bg-color: #f0f0f0;
+            --text-color: #333;
+            --control-bg: rgba(0, 0, 0, 0.5);
+            --control-color: #fff;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #222;
+            --text-color: #fff;
+            --control-bg: rgba(255, 255, 255, 0.3);
+            --control-color: #fff;
+        }
+
+        body {
             margin:0; padding:0; height:100%; overflow:hidden; font-family: Arial, sans-serif;
             display:flex; flex-direction:column;
-            /*background: linear-gradient(to right, #e0f7fa, #e1bee7);*/
+            background: var(--bg-color);
+            color: var(--text-color);
+            transition: all 0.3s ease;
         }
         nav {
             position:absolute; top:10px; right:10px; z-index:1000;
+            display: flex;
+            gap: 10px;
         }
-        nav a {
-            color:#fff; text-decoration:none; font-weight:bold;
-            background:#444; padding:10px 15px; border-radius:5px;
+        nav a, nav button {
+            color: var(--text-color);
+            text-decoration:none; font-weight:bold;
+            background: var(--control-bg);
+            padding:10px 15px; border-radius:5px;
             transition: background 0.3s;
+            border: none;
+            cursor: pointer;
         }
-        nav a:hover {
-            background:#555;
+        nav a:hover, nav button:hover {
+            background: rgba(0, 0, 0, 0.8);
         }
         .carousel {
             position: relative;
@@ -205,6 +227,8 @@ if (is_dir($directory)) {
 </head>
 <body>
 <nav>
+    <a href="Plugins/3d-gallery.php">3D相册</a>
+    <button onclick="toggleTheme()">切换主题</button>
     <a href="login.php">文件管理</a>
 </nav>
 
@@ -236,6 +260,22 @@ if (is_dir($directory)) {
 <?php endif; ?>
 
 <script>
+    function toggleTheme() {
+        const body = document.body;
+        const currentTheme = body.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        body.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.body.setAttribute('data-theme', savedTheme);
+        }
+    });
+
     class InfiniteRandomCarousel {
         constructor(items, autoplayInterval = 5000) {
             this.items = items;
