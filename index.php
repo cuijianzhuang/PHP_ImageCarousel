@@ -6,7 +6,13 @@ $autoplayInterval = $config['autoplayInterval'] ?? 5000; // 默认5秒
 $enabledFiles = $config['enabledFiles'] ?? [];
 
 $directory = 'assets/';
-$allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'webm', 'ogg'];
+$allowedExtensions = [
+    // Image formats
+    'jpeg','jpg','png','gif','webp','bmp','tiff','tif','heic','heif',
+
+    // Video formats
+    'mp4','avi','mov','wmv','flv','mkv','webm','ogg','m4v','mpeg','mpg', '3gp'
+];
 $slides = [];
 if (is_dir($directory)) {
     $files = array_diff(scandir($directory), ['.', '..']);
