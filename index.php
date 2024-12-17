@@ -25,6 +25,9 @@ if (is_dir($directory)) {
             }
         }
     }
+
+    // 随机打乱幻灯片顺序
+    shuffle($slides);
 }
 ?>
 <!DOCTYPE html>
