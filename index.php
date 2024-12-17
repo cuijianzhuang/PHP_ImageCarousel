@@ -41,7 +41,7 @@ if (is_dir($directory)) {
         html, body {
             margin:0; padding:0; height:100%; overflow:hidden; font-family: Arial, sans-serif;
             display:flex; flex-direction:column;
-            background: linear-gradient(to right, #e0f7fa, #e1bee7);
+            /*background: linear-gradient(to right, #e0f7fa, #e1bee7);*/
         }
         nav {
             position:absolute; top:10px; right:10px; z-index:1000;
@@ -106,6 +106,7 @@ if (is_dir($directory)) {
         }
         .controls.hidden {
             opacity:0;
+            pointer-events: none;
         }
         .no-file {
             font-size:24px; color:#333;
@@ -253,6 +254,7 @@ if (is_dir($directory)) {
                 'rotate-scale-transition',
                 'flip-transition'
             ];
+            this.controlsTimeout = null;
             this.init();
         }
 
@@ -260,6 +262,45 @@ if (is_dir($directory)) {
             this.next();
             this.startAutoplay();
             this.bindEvents();
+            this.setupControlsVisibility();
+        }
+
+        setupControlsVisibility() {
+            const controls = document.getElementById('controls');
+            const carousel = document.querySelector('.carousel');
+
+            // Show controls on mouse move or touch
+            const showControls = () => {
+                controls.classList.remove('hidden');
+                
+                // Clear existing timeout
+                if (this.controlsTimeout) {
+                    clearTimeout(this.controlsTimeout);
+                }
+                
+                // Set new timeout to hide controls
+                this.controlsTimeout = setTimeout(() => {
+                    controls.classList.add('hidden');
+                }, 5000);
+            };
+
+            // Initial show
+            showControls();
+
+            // Add event listeners
+            carousel.addEventListener('mousemove', showControls);
+            carousel.addEventListener('touchstart', showControls);
+            
+            // Show controls when buttons are clicked
+            const pauseButton = document.getElementById('pauseBtn');
+            const prevButton = document.getElementById('prev');
+            const nextButton = document.getElementById('next');
+            
+            [pauseButton, prevButton, nextButton].forEach(button => {
+                if (button) {
+                    button.addEventListener('click', showControls);
+                }
+            });
         }
 
         getRandomTransition() {
