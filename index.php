@@ -66,8 +66,14 @@ if (is_dir($directory)) {
             height:100%; width:100%;
         }
         .carousel-item {
-            min-width: 100vw; min-height:100vh; box-sizing: border-box;
-            display:flex; justify-content:center; align-items:center;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transition: all 0.8s ease;
+        }
+        .carousel-item.active {
+            opacity: 1;
         }
         .carousel-item img, .carousel-item video {
             width:100%; height:100%; object-fit: contain;
@@ -114,6 +120,86 @@ if (is_dir($directory)) {
                 padding:8px 16px; font-size:14px;
             }
         }
+
+        /* 添加过渡动画效果 */
+        .fade-transition {
+            opacity: 0;
+            transform: scale(1);
+        }
+        .fade-transition.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* 缩放 */
+        .zoom-transition {
+            opacity: 0;
+            transform: scale(0.3);
+        }
+        .zoom-transition.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* 左滑入 */
+        .slide-left-transition {
+            opacity: 0;
+            transform: translateX(100%);
+        }
+        .slide-left-transition.active {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* 右滑入 */
+        .slide-right-transition {
+            opacity: 0;
+            transform: translateX(-100%);
+        }
+        .slide-right-transition.active {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* 上滑入 */
+        .slide-up-transition {
+            opacity: 0;
+            transform: translateY(100%);
+        }
+        .slide-up-transition.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* 下滑入 */
+        .slide-down-transition {
+            opacity: 0;
+            transform: translateY(-100%);
+        }
+        .slide-down-transition.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* 旋转缩放 */
+        .rotate-scale-transition {
+            opacity: 0;
+            transform: rotate(180deg) scale(0.3);
+        }
+        .rotate-scale-transition.active {
+            opacity: 1;
+            transform: rotate(0) scale(1);
+        }
+
+        /* 翻转 */
+        .flip-transition {
+            opacity: 0;
+            transform: perspective(1000px) rotateY(90deg);
+        }
+        .flip-transition.active {
+            opacity: 1;
+            transform: perspective(1000px) rotateY(0);
+        }
     </style>
 </head>
 <body>
@@ -149,90 +235,167 @@ if (is_dir($directory)) {
 <?php endif; ?>
 
 <script>
-    const track = document.querySelector('.carousel-track');
-    const items = document.querySelectorAll('.carousel-item');
-    const prevButton = document.getElementById('prev');
-    const nextButton = document.getElementById('next');
-    const pauseButton = document.getElementById('pauseBtn');
-    const controls = document.getElementById('controls');
+    class InfiniteRandomCarousel {
+        constructor(items, autoplayInterval = 5000) {
+            this.items = items;
+            this.currentIndex = -1;
+            this.autoplayInterval = autoplayInterval;
+            this.isPaused = false;
+            this.history = [];
+            this.maxHistoryLength = 3;
+            this.transitions = [
+                'fade-transition',
+                'zoom-transition',
+                'slide-left-transition',
+                'slide-right-transition',
+                'slide-up-transition',
+                'slide-down-transition',
+                'rotate-scale-transition',
+                'flip-transition'
+            ];
+            this.init();
+        }
 
-    let currentIndex = 0;
-    let autoplayInterval = <?= intval($autoplayInterval) ?>;
-    let isPaused = false;
-    let hideControlsTimer;
+        init() {
+            this.next();
+            this.startAutoplay();
+            this.bindEvents();
+        }
 
-    function updateCarousel() {
-        if (items.length > 0) {
-            const itemWidth = items[0].getBoundingClientRect().width;
-            track.style.transform = `translateX(-${currentIndex * itemWidth}px)`;
+        getRandomTransition() {
+            return this.transitions[Math.floor(Math.random() * this.transitions.length)];
+        }
+
+        getRandomIndex() {
+            let randomIndex;
+            do {
+                randomIndex = Math.floor(Math.random() * this.items.length);
+            } while (this.history.includes(randomIndex) && this.history.length < this.items.length);
+
+            this.history.push(randomIndex);
+            if (this.history.length > this.maxHistoryLength) {
+                this.history.shift();
+            }
+
+            return randomIndex;
+        }
+
+        updateCarousel(newIndex) {
+            // 移除当前项目的活动状态和过渡类
+            if (this.currentIndex >= 0) {
+                const currentItem = this.items[this.currentIndex];
+                currentItem.classList.remove('active');
+                this.transitions.forEach(transition => {
+                    currentItem.classList.remove(transition);
+                });
+            }
+
+            // 更新索引
+            this.currentIndex = newIndex;
+            const nextItem = this.items[this.currentIndex];
+
+            // 应用新的过渡效果
+            const transition = this.getRandomTransition();
+            nextItem.classList.add(transition);
+
+            // 确保过渡效果生效
+            setTimeout(() => {
+                nextItem.classList.add('active');
+            }, 50);
+
+            // 媒体控制
+            this.items.forEach((item, index) => {
+                const media = item.querySelector('video');
+                if (media) {
+                    if (index === this.currentIndex) {
+                        media.currentTime = 0;
+                        media.play().catch(e => console.log('播放错误:', e));
+                    } else {
+                        media.pause();
+                    }
+                }
+            });
+        }
+
+        next() {
+            const nextIndex = this.getRandomIndex();
+            this.updateCarousel(nextIndex);
+        }
+
+        startAutoplay() {
+            this.stopAutoplay();
+            this.autoplayTimer = setInterval(() => {
+                if (!this.isPaused) {
+                    this.next();
+                }
+            }, this.autoplayInterval);
+        }
+
+        stopAutoplay() {
+            if (this.autoplayTimer) {
+                clearInterval(this.autoplayTimer);
+            }
+        }
+
+        togglePause() {
+            this.isPaused = !this.isPaused;
+            return this.isPaused;
+        }
+
+        bindEvents() {
+            const nextButton = document.getElementById('next');
+            const prevButton = document.getElementById('prev');
+            const pauseButton = document.getElementById('pauseBtn');
+
+            if (nextButton) {
+                nextButton.addEventListener('click', () => {
+                    this.next();
+                    this.startAutoplay();
+                });
+            }
+
+            if (prevButton) {
+                prevButton.addEventListener('click', () => {
+                    const prevIndex = this.getRandomIndex();
+                    this.updateCarousel(prevIndex);
+                    this.startAutoplay();
+                });
+            }
+
+            if (pauseButton) {
+                pauseButton.addEventListener('click', () => {
+                    const isPaused = this.togglePause();
+                    pauseButton.textContent = isPaused ? '继续' : '暂停';
+
+                    if (isPaused) {
+                        this.stopAutoplay();
+                    } else {
+                        this.startAutoplay();
+                    }
+                });
+            }
+
+            // 监听过渡结束事件
+            this.items.forEach(item => {
+                item.addEventListener('transitionend', () => {
+                    this.transitions.forEach(transition => {
+                        if (item !== this.items[this.currentIndex]) {
+                            item.classList.remove(transition);
+                        }
+                    });
+                });
+            });
+
+            window.addEventListener('resize', () => {
+                this.updateCarousel(this.currentIndex);
+            });
         }
     }
 
-    function autoPlay() {
-        if (!isPaused && items.length > 0) {
-            currentIndex = (currentIndex === items.length - 1) ? 0 : currentIndex + 1;
-            updateCarousel();
-        }
-    }
-
-    let autoPlayTimer = setInterval(autoPlay, autoplayInterval);
-
-    function resetAutoPlay() {
-        clearInterval(autoPlayTimer);
-        autoPlayTimer = setInterval(autoPlay, autoplayInterval);
-    }
-
-    function showControls() {
-        controls.classList.remove('hidden');
-        resetHideControlsTimer();
-    }
-
-    function hideControls() {
-        controls.classList.add('hidden');
-    }
-
-    function resetHideControlsTimer() {
-        clearTimeout(hideControlsTimer);
-        hideControlsTimer = setTimeout(hideControls, 5000); // 5秒后隐藏
-    }
-
-    // 初始隐藏计时
-    hideControlsTimer = setTimeout(hideControls, 5000);
-
-    // 显示控制按钮并重置计时器
-    document.querySelector('.carousel').addEventListener('mousemove', showControls);
-    document.querySelector('.carousel').addEventListener('touchstart', showControls);
-
-    if (prevButton && nextButton) {
-        prevButton.addEventListener('click', () => {
-            if (items.length > 0) {
-                currentIndex = (currentIndex === 0) ? items.length - 1 : currentIndex - 1;
-                updateCarousel();
-                resetAutoPlay();
-                showControls();
-            }
-        });
-
-        nextButton.addEventListener('click', () => {
-            if (items.length > 0) {
-                currentIndex = (currentIndex === items.length - 1) ? 0 : currentIndex + 1;
-                updateCarousel();
-                resetAutoPlay();
-                showControls();
-            }
-        });
-    }
-
-    if (pauseButton) {
-        pauseButton.addEventListener('click', () => {
-            isPaused = !isPaused;
-            pauseButton.textContent = isPaused ? '继续' : '暂停';
-            resetAutoPlay();
-            showControls();
-        });
-    }
-
-    window.addEventListener('resize', updateCarousel);
+    document.addEventListener('DOMContentLoaded', () => {
+        const carouselItems = document.querySelectorAll('.carousel-item');
+        const infiniteCarousel = new InfiniteRandomCarousel(carouselItems, <?= intval($autoplayInterval) ?>);
+    });
 </script>
 </body>
 </html>
