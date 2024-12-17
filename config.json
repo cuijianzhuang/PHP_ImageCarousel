@@ -1,0 +1,13 @@
+{
+    "autoplayInterval": 3000,
+    "enabledFiles": [],
+    "admin": {
+        "username": "admin",
+        "password": "password123"
+    },
+    "viewMode": "grid",
+    "perPage": 10,
+    "theme": "light",
+    "animation": "zoom",
+    "animationEffect": "smooth"
+}

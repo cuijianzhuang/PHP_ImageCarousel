@@ -1,0 +1,10 @@
+{
+    "autoplayInterval": 3000,
+    "enabledFiles": {},
+    "admin": {
+        "username": "admin",
+        "password": "password123"
+    },
+    "viewMode": "list",
+    "perPage": 10
+}
