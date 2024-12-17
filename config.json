@@ -1,6 +1,8 @@
 {
     "autoplayInterval": 3000,
-    "enabledFiles": [],
+    "enabledFiles": {
+        "微信截图_20241217145148.png": true
+    },
     "admin": {
         "username": "admin",
         "password": "password123"
