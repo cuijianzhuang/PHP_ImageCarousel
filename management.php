@@ -30,21 +30,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['uploadFile']) && !is
     if (!is_dir($directory)) {
         mkdir($directory, 0777, true);
     }
-    $uploadFileName = basename($_FILES['uploadFile']['name']);
-    $targetFilePath = $directory . $uploadFileName;
-    $ext = strtolower(pathinfo($targetFilePath, PATHINFO_EXTENSION));
 
-    if (in_array($ext, $allowedExtensions)) {
-        if (move_uploaded_file($_FILES['uploadFile']['tmp_name'], $targetFilePath)) {
-            $message = "文件上传成功！";
-            $config['enabledFiles'][$uploadFileName] = true; // 默认启用新文件
-            // 保存配置文件
-            file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        } else {
-            $message = "文件上传失败。";
+    // 处理多文件上传
+    $files = [];
+    $fileCount = is_array($_FILES['uploadFile']['name']) ? count($_FILES['uploadFile']['name']) : 1;
+
+    for ($i = 0; $i < $fileCount; $i++) {
+        $uploadFileName = is_array($_FILES['uploadFile']['name']) ? $_FILES['uploadFile']['name'][$i] : $_FILES['uploadFile']['name'];
+        $tmpName = is_array($_FILES['uploadFile']['tmp_name']) ? $_FILES['uploadFile']['tmp_name'][$i] : $_FILES['uploadFile']['tmp_name'];
+        
+        if (empty($uploadFileName) || empty($tmpName)) continue;
+
+        $targetFilePath = $directory . basename($uploadFileName);
+        $ext = strtolower(pathinfo($targetFilePath, PATHINFO_EXTENSION));
+
+        if (in_array($ext, $allowedExtensions)) {
+            if (move_uploaded_file($tmpName, $targetFilePath)) {
+                $config['enabledFiles'][basename($uploadFileName)] = true;
+                $files[] = basename($uploadFileName);
+            }
         }
+    }
+
+    // 保存配置文件
+    if (!empty($files)) {
+        file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        $message = count($files) > 1 ? 
+            "成功上传 " . count($files) . " 个文件" : 
+            "文件 '" . $files[0] . "' 上传成功";
     } else {
-        $message = "不支持的文件类型。";
+        $message = "没有文件被上传或文件类型不支持";
+    }
+
+    // 如果是Ajax请求，返回JSON响应
+    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
+        strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+        header('Content-Type: application/json');
+        echo json_encode(['message' => $message]);
+        exit;
     }
 }
 
@@ -281,6 +304,97 @@ $viewMode = $config['viewMode'];
         .modal-close:hover {
             background:#555;
         }
+
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .upload-area.dragover {
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+        
+        .upload-hint {
+            color: #666;
+            margin: 15px 0;
+        }
+        
+        .upload-btn {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        
+        .upload-btn:hover {
+            background: #45a049;
+        }
+        
+        .file-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .preview-item {
+            position: relative;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 5px;
+        }
+        
+        .preview-item img, 
+        .preview-item video {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        
+        .preview-remove {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .upload-progress {
+            margin-top: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 4px;
+            background: #4CAF50;
+            width: 0;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -300,17 +414,17 @@ $viewMode = $config['viewMode'];
     <?php if ($message) echo "<p class='message'>" . htmlspecialchars($message) . "</p>"; ?>
 
     <!-- 上传区域 -->
-    <div class="upload-area">
+    <div class="upload-area" id="dropZone">
         <h3>上传文件（图片或视频）</h3>
+        <p class="upload-hint">点击选择或拖拽文件到此处</p>
         <form id="uploadForm" action="" method="post" enctype="multipart/form-data">
-            <input type="file" name="uploadFile" id="fileInput" required>
-            <button type="submit">上传</button>
+            <input type="file" name="uploadFile[]" id="fileInput" multiple accept="image/*,video/*" style="display: none;">
+            <button type="button" id="selectFiles" class="upload-btn">选择文件</button>
         </form>
+        <!-- 文件预览区域 -->
+        <div id="filePreview" class="file-preview"></div>
         <!-- 进度条容器 -->
-        <div id="progressContainer" style="display:none; margin-top:10px;">
-            <div id="progressBar" style="width:0%; height:5px; background-color:#4CAF50; transition:width 0.5s;"></div>
-            <div id="progressText" style="margin-top:5px;"></div>
-        </div>
+        <div id="uploadProgress"></div>
     </div>
 
 
@@ -579,6 +693,116 @@ $viewMode = $config['viewMode'];
         xhr.open('POST', '', true);
         xhr.send(formData);
     });
+</script>
+<script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const selectFiles = document.getElementById('selectFiles');
+    const filePreview = document.getElementById('filePreview');
+    const uploadProgress = document.getElementById('uploadProgress');
+    
+    // 点击选择文件
+    selectFiles.addEventListener('click', () => fileInput.click());
+    
+    // 处理拖拽事件
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => {
+            dropZone.classList.add('dragover');
+        });
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => {
+            dropZone.classList.remove('dragover');
+        });
+    });
+    
+    // 处理文件拖放
+    dropZone.addEventListener('drop', e => {
+        const files = e.dataTransfer.files;
+        handleFiles(files);
+    });
+    
+    // 处理文件选择
+    fileInput.addEventListener('change', e => {
+        handleFiles(e.target.files);
+    });
+    
+    function handleFiles(files) {
+        Array.from(files).forEach(file => {
+            if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+                const reader = new FileReader();
+                const previewItem = document.createElement('div');
+                previewItem.className = 'preview-item';
+                
+                reader.onload = e => {
+                    const preview = file.type.startsWith('image/') 
+                        ? `<img src="${e.target.result}" alt="${file.name}">`
+                        : `<video src="${e.target.result}" muted></video>`;
+                        
+                    previewItem.innerHTML = `
+                        ${preview}
+                        <button class="preview-remove" onclick="this.parentElement.remove()">×</button>
+                        <div class="upload-progress">
+                            <div class="progress-bar"></div>
+                            <div class="progress-text">准备上传...</div>
+                        </div>
+                    `;
+                    
+                    filePreview.appendChild(previewItem);
+                    uploadFile(file, previewItem);
+                };
+                
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+    
+    function uploadFile(file, previewItem) {
+        const formData = new FormData();
+        formData.append('uploadFile[]', file);
+        
+        const xhr = new XMLHttpRequest();
+        const progressBar = previewItem.querySelector('.progress-bar');
+        const progressText = previewItem.querySelector('.progress-text');
+        
+        xhr.upload.onprogress = e => {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                progressBar.style.width = percent + '%';
+                progressText.textContent = `上传中: ${percent}%`;
+            }
+        };
+        
+        xhr.onload = () => {
+            if (xhr.status === 200) {
+                progressText.textContent = '上传完成';
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                progressText.textContent = '上传失败';
+                progressBar.style.backgroundColor = '#ff4444';
+            }
+        };
+        
+        xhr.onerror = () => {
+            progressText.textContent = '上传错误';
+            progressBar.style.backgroundColor = '#ff4444';
+        };
+        
+        xhr.open('POST', '', true);
+        xhr.send(formData);
+    }
 </script>
 </body>
 </html>
