@@ -299,12 +299,18 @@ $viewMode = $config['viewMode'];
 <div class="wrapper">
     <?php if ($message) echo "<p class='message'>" . htmlspecialchars($message) . "</p>"; ?>
 
+    <!-- 上传区域 -->
     <div class="upload-area">
         <h3>上传文件（图片或视频）</h3>
-        <form action="" method="post" enctype="multipart/form-data">
-            <input type="file" name="uploadFile" required>
+        <form id="uploadForm" action="" method="post" enctype="multipart/form-data">
+            <input type="file" name="uploadFile" id="fileInput" required>
             <button type="submit">上传</button>
         </form>
+        <!-- 进度条容器 -->
+        <div id="progressContainer" style="display:none; margin-top:10px;">
+            <div id="progressBar" style="width:0%; height:5px; background-color:#4CAF50; transition:width 0.5s;"></div>
+            <div id="progressText" style="margin-top:5px;"></div>
+        </div>
     </div>
 
 
@@ -513,6 +519,66 @@ $viewMode = $config['viewMode'];
         }
     });
 </script>
+<script>
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        e.preventDefault(); // 阻止默认提交
 
+        const fileInput = document.getElementById('fileInput');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+
+        // 检查是否选择了文件
+        if (!fileInput.files.length) {
+            alert('请选择文件');
+            return;
+        }
+
+        // 创建 FormData
+        const formData = new FormData(this);
+
+        // 显示进度条
+        progressContainer.style.display = 'block';
+        progressBar.style.width = '0%';
+        progressText.textContent = '准备上传...';
+
+        // XMLHttpRequest 对象
+        const xhr = new XMLHttpRequest();
+
+        // 上传进度事件
+        xhr.upload.onprogress = function(event) {
+            if (event.lengthComputable) {
+                const percentComplete = Math.round((event.loaded / event.total) * 100);
+                progressBar.style.width = percentComplete + '%';
+                progressText.textContent = `上传进度：${percentComplete}%`;
+            }
+        };
+
+        // 上传完成事件
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                progressText.textContent = '上传完成！';
+                progressBar.style.backgroundColor = '#4CAF50'; // 绿色
+                // 可以在这里刷新页面或动态更新文件列表
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                progressText.textContent = '上传失败！';
+                progressBar.style.backgroundColor = '#F44336'; // 红色
+            }
+        };
+
+        // 错误处理
+        xhr.onerror = function() {
+            progressText.textContent = '上传发生错误！';
+            progressBar.style.backgroundColor = '#F44336';
+        };
+
+        // 发送请求
+        xhr.open('POST', '', true);
+        xhr.send(formData);
+    });
+</script>
 </body>
 </html>
