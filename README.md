@@ -52,4 +52,4 @@ MIT License
 
 ## 联系方式
 
-如有问题请提交Issue或发送邮件至[您的邮箱](cui2421011864@gmail.com)。
+如有问题请提交Issue或发送邮件至**cui2421011864@gmail.com**。
