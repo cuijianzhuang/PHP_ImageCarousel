@@ -1,48 +1,10 @@
 <?php
-$showDirectory = '../assets/showimg/';
-$baseDirectory = '../assets/';
-$allowedExtensions = ['jpeg','jpg','png','gif','webp'];
-$images = [];
-
-// 首先从showimg目录获取启用的轮播图片
-if (is_dir($showDirectory)) {
-    $showFiles = array_diff(scandir($showDirectory), ['.', '..']);
-    foreach ($showFiles as $file) {
-        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-        if (in_array($ext, $allowedExtensions)) {
-            $images[] = $showDirectory . $file;
-        }
-    }
-    shuffle($images); // 随机排序展示图片
-}
-
-// 如果轮播图片不够6张，从assets目录补充
-if (count($images) < 6 && is_dir($baseDirectory)) {
-    $baseFiles = array_diff(scandir($baseDirectory), ['.', '..', 'showimg']);
-    $additionalImages = [];
-    foreach ($baseFiles as $file) {
-        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-        if (in_array($ext, $allowedExtensions)) {
-            $additionalImages[] = $baseDirectory . $file;
-        }
-    }
-    
-    if (!empty($additionalImages)) {
-        shuffle($additionalImages); // 随机排序补充图片
-        $images = array_merge($images, $additionalImages);
-    }
-}
-
-// 确保总是有6张图片
-if (count($images) > 0) {
-    while (count($images) < 6) {
-        $images = array_merge($images, $images); // 如果图片不够，重复使用已有图片
-    }
-    $images = array_slice($images, 0, 6); // 只取前6张
-} else {
-    // 如果没有找到任何图片，使用占位图
-    $images = array_fill(0, 6, '../assets/placeholder.jpg');
-}
+// 设置页面缓存控制
+$seconds_to_cache = 3600; // 缓存时间，例如这里设置为1小时
+$ts = gmdate("D, d M Y H:i:s", time() + $seconds_to_cache) . ' GMT';
+header("Expires: $ts");
+header("Pragma: cache");
+header("Cache-Control: max-age=$seconds_to_cache");
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">

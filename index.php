@@ -1,4 +1,11 @@
 <?php
+// 设置页面缓存控制
+$seconds_to_cache = 3600; // 缓存时间，例如这里设置为1小时
+$ts = gmdate("D, d M Y H:i:s", time() + $seconds_to_cache) . ' GMT';
+header("Expires: $ts");
+header("Pragma: cache");
+header("Cache-Control: max-age=$seconds_to_cache");
+
 $configFile = __DIR__ . '/config.json';
 $config = file_exists($configFile) ? json_decode(file_get_contents($configFile), true) : [];
 if (!is_array($config)) $config = [];
