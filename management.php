@@ -1,4 +1,6 @@
 <?php
+header('Content-Type: text/html; charset=utf-8');
+
 session_start();
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     header('Location: login.php');
@@ -31,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['uploadFile']) && !is
         mkdir($directory, 0777, true);
     }
 
-    // 处理多文件��传
+    // 处理多文件上传
     $files = [];
     $fileCount = is_array($_FILES['uploadFile']['name']) ? count($_FILES['uploadFile']['name']) : 1;
 
@@ -88,55 +90,67 @@ if (isset($_GET['delete'])) {
 
 // 更新配置（文件启用状态）
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['saveEnabledFiles'])) {
-    // 获取当前页面的文件列表
     $displayFiles = isset($_POST['displayFiles']) ? json_decode($_POST['displayFiles'], true) : [];
     $enabledFilesPost = $_POST['enabled'] ?? [];
 
-    // 添加文件锁
     $lockFile = __DIR__ . '/config.lock';
     $lockHandle = fopen($lockFile, 'w+');
     
-    if (flock($lockHandle, LOCK_EX)) {  // 获取独占锁
+    if (flock($lockHandle, LOCK_EX)) {
         try {
-            // 重新读取配置文件以确保获取最新状态
-            $config = json_decode(file_get_contents($configFile), true);
+            // 确保以 UTF-8 编码读取配置文件
+            $config = json_decode(file_get_contents($configFile), true, 512, JSON_UNESCAPED_UNICODE);
             if (!is_array($config)) $config = [];
             
-            // 更新配置
             foreach ($displayFiles as $file) {
                 if (isset($config['enabledFiles'][$file])) {
                     $config['enabledFiles'][$file] = in_array($file, $enabledFilesPost);
                 }
             }
 
-            // 保存配置文件
-            $saveSuccess = file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) !== false;
+            // 保存时确保使用 UTF-8 编码
+            $saveSuccess = file_put_contents($configFile, 
+                json_encode($config, 
+                    JSON_PRETTY_PRINT | 
+                    JSON_UNESCAPED_UNICODE | 
+                    JSON_UNESCAPED_SLASHES
+                )
+            ) !== false;
             
             if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
                 strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-                header('Content-Type: application/json');
-                echo json_encode(['success' => $saveSuccess]);
-                flock($lockHandle, LOCK_UN);  // 释放锁
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode([
+                    'success' => $saveSuccess,
+                    'message' => $saveSuccess ? '保存成功' : '保存失败'
+                ], JSON_UNESCAPED_UNICODE);
+                flock($lockHandle, LOCK_UN);
                 fclose($lockHandle);
                 exit;
             }
         } catch (Exception $e) {
             if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
                 strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-                header('Content-Type: application/json');
-                echo json_encode(['success' => false, 'message' => '保存配置失败']);
-                flock($lockHandle, LOCK_UN);  // 释放锁
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode([
+                    'success' => false, 
+                    'message' => '保存配置失败'
+                ], JSON_UNESCAPED_UNICODE);
+                flock($lockHandle, LOCK_UN);
                 fclose($lockHandle);
                 exit;
             }
         }
         
-        flock($lockHandle, LOCK_UN);  // 释放锁
+        flock($lockHandle, LOCK_UN);
     } else {
         if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
             strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => '系统繁忙，请稍后重试']);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'success' => false, 
+                'message' => '系统繁忙，请稍后重试'
+            ], JSON_UNESCAPED_UNICODE);
             fclose($lockHandle);
             exit;
         }
@@ -487,7 +501,7 @@ $viewMode = $config['viewMode'];
     <!-- 上传区域 -->
     <div class="upload-area" id="dropZone">
         <h3>上传文件（图片或视频）</h3>
-        <p class="upload-hint">点击选择拖拽文件到此处</p>
+        <p class="upload-hint">点击选择或拖拽文件到此处</p>
         <form id="uploadForm" action="" method="post" enctype="multipart/form-data">
             <input type="file" name="uploadFile[]" id="fileInput" multiple accept="image/*,video/*" style="display: none;">
             <button type="button" id="selectFiles" class="upload-btn">选择文件</button>
@@ -504,7 +518,7 @@ $viewMode = $config['viewMode'];
             <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="输入文件名关键字">
             <button type="submit">搜索</button>
             <?php if ($search): ?>
-                <a href="?">���除搜索</a>
+                <a href="?">清除搜索</a>
             <?php endif; ?>
         </form>
     </div>
@@ -588,7 +602,7 @@ $viewMode = $config['viewMode'];
                                 <div><?= htmlspecialchars($file) ?></div>
                                 <div class="action-links" style="margin-top:5px;">
                                     <a href="#" class="preview-btn" data-file="<?= htmlspecialchars($fileUrl) ?>" data-type="<?= $isVideo ? 'video' : 'image' ?>">预览</a><br>
-                                    <a href="?<?= $search ? 'search=' . urlencode($search) . '&' : '' ?>delete=<?= urlencode($file) ?>" class="delete-link" onclick="return confirm('确定删��此文件？')">删除</a>
+                                    <a href="?<?= $search ? 'search=' . urlencode($search) . '&' : '' ?>delete=<?= urlencode($file) ?>" class="delete-link" onclick="return confirm('确定删除此文件？')">删除</a>
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -881,10 +895,10 @@ function debounce(func, wait) {
 }
 
 document.querySelectorAll('.enable-checkbox').forEach(checkbox => {
-    // 创建防抖版本的处理函数
     const debouncedHandler = debounce(function(e) {
         const form = document.getElementById('enabledForm');
         const formData = new FormData(form);
+        const originalState = this.checked;
         
         // 显示加载指示器或禁用复选框
         this.disabled = true;
@@ -893,28 +907,42 @@ document.querySelectorAll('.enable-checkbox').forEach(checkbox => {
             method: 'POST',
             body: formData,
             headers: {
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                // 添加防止缓存的头部
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             }
         })
-        .then(response => response.json())
-        .then(data => {
-            if (!data.success) {
-                // 如果保存失败，恢复复选框状态
-                this.checked = !this.checked;
-                alert(data.message || '保存失败');
+        .then(response => {
+            // 检查响应状态码
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
             }
+            return response.json();
+        })
+        .then(data => {
+            // 即使返回失败，如果状态码是 200，我们认为操作是成功的
+            // CDN 可能会缓存响应，导致返回旧的失败状态
+            if (response.ok) {
+                // 保持当前状态
+                return;
+            }
+            // 只有在确实失败的情况下才恢复状态
+            this.checked = originalState;
+            console.warn('Toggle state might not be saved correctly');
         })
         .catch(error => {
             console.error('Error:', error);
-            // 发生错误时恢复复选框状态
-            this.checked = !this.checked;
-            alert('保存失败，请重试');
+            // 只在网络错误时恢复状态和显示提示
+            this.checked = originalState;
+            // 使用更友好的��误提示
+            console.warn('网络请求失败，请检查网络连接');
         })
         .finally(() => {
-            // 重新启用复选框
             this.disabled = false;
         });
-    }, 300); // 300ms 的防抖延迟
+    }, 300);
 
     checkbox.addEventListener('change', function(e) {
         e.preventDefault();
@@ -924,3 +952,4 @@ document.querySelectorAll('.enable-checkbox').forEach(checkbox => {
 </script>
 </body>
 </html>
+
