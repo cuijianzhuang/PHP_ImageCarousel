@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['uploadFile']) && !is
         mkdir($directory, 0777, true);
     }
 
-    // 处理多文件上传
+    // 处理多文件��传
     $files = [];
     $fileCount = is_array($_FILES['uploadFile']['name']) ? count($_FILES['uploadFile']['name']) : 1;
 
@@ -88,30 +88,33 @@ if (isset($_GET['delete'])) {
 
 // 更新配置（文件启用状态）
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['saveEnabledFiles'])) {
-    // 文件启用状态
+    // 获取当前页面的文件列表
+    $displayFiles = isset($_POST['displayFiles']) ? json_decode($_POST['displayFiles'], true) : [];
     $enabledFilesPost = $_POST['enabled'] ?? [];
-    // 遍历当前文件夹中的文件
-    if (is_dir($directory)) {
-        $scan = array_diff(scandir($directory), ['.', '..']);
-        foreach ($scan as $f) {
-            $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
-            if (in_array($ext, $allowedExtensions)) {
-                // 如果文件在提交的启用列表中，则设置为 true，否则保持原有状态
-                if (in_array($f, $enabledFilesPost)) {
-                    $config['enabledFiles'][$f] = true;
-                } else {
-                    // 只修改当前页面显示的文件状态
-                    if (isset($config['enabledFiles'][$f])) {
-                        $config['enabledFiles'][$f] = false;
-                    }
-                }
-            }
+
+    // 更新配置
+    foreach ($displayFiles as $file) {
+        if (isset($config['enabledFiles'][$file])) {
+            $config['enabledFiles'][$file] = in_array($file, $enabledFilesPost);
         }
     }
 
     // 保存配置文件
-    file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-    $message = "文件显示配置已保存。";
+    if (file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) !== false) {
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
+            strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => true]);
+            exit;
+        }
+    } else {
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
+            strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => '保存配置失败']);
+            exit;
+        }
+    }
 }
 
 // 搜索文件
@@ -371,6 +374,58 @@ $viewMode = $config['viewMode'];
             color: #666;
             margin-top: 4px;
         }
+
+        /* 开关按钮样式 */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+        }
+
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .slider.round {
+            border-radius: 24px;
+        }
+
+        .slider.round:before {
+            border-radius: 50%;
+        }
     </style>
 </head>
 <body>
@@ -419,16 +474,23 @@ $viewMode = $config['viewMode'];
         <?php if (empty($displayFiles)): ?>
             <p>没有匹配的媒体文件。</p>
         <?php else: ?>
+            <div style="margin-bottom: 15px;">
+                总文件数量: <?= $totalFiles ?> 个文件 | 
+                展示文件数量: <?= count(array_filter($config['enabledFiles'], function($enabled) { return $enabled; })) ?> 个文件
+            </div>
             <!-- 文件启用状态表单 -->
-            <form method="post" action="">
+            <form method="post" action="" id="enabledForm">
                 <input type="hidden" name="saveEnabledFiles" value="1">
+                <input type="hidden" name="current_page" value="<?= $currentPage ?>">
+                <input type="hidden" name="current_search" value="<?= htmlspecialchars($search) ?>">
+                <input type="hidden" name="displayFiles" value="<?= htmlspecialchars(json_encode($displayFiles)) ?>">
                 <?php if ($viewMode === 'list'): ?>
                     <div class="files-list">
                         <table>
                             <tr>
-                                <th>显示</th>
                                 <th>缩略图</th>
                                 <th>文件名</th>
+                                <th>轮播展示</th>
                                 <th>操作</th>
                             </tr>
                             <?php foreach ($displayFiles as $file):
@@ -439,12 +501,6 @@ $viewMode = $config['viewMode'];
                                 ?>
                                 <tr>
                                     <td>
-                                        <label>
-                                            <input type="checkbox" class="enable-checkbox" name="enabled[]" value="<?= htmlspecialchars($file) ?>" <?= $enabled ? 'checked' : '' ?>>
-                                            显示
-                                        </label>
-                                    </td>
-                                    <td>
                                         <?php if ($isVideo): ?>
                                             <video data-src="<?= htmlspecialchars($fileUrl) ?>" preload="none" muted class="lazy" style="max-width:100px;max-height:60px;"></video>
                                         <?php else: ?>
@@ -452,6 +508,15 @@ $viewMode = $config['viewMode'];
                                         <?php endif; ?>
                                     </td>
                                     <td><?= htmlspecialchars($file) ?></td>
+                                    <td>
+                                        <label class="switch">
+                                            <input type="checkbox" class="enable-checkbox" name="enabled[]" 
+                                                   value="<?= htmlspecialchars($file) ?>" 
+                                                   <?= $enabled ? 'checked' : '' ?> 
+                                                   onchange="document.getElementById('enabledForm').submit()">
+                                            <span class="slider round"></span>
+                                        </label>
+                                    </td>
                                     <td class="action-links">
                                         <a href="#" class="preview-btn" data-file="<?= htmlspecialchars($fileUrl) ?>" data-type="<?= $isVideo ? 'video' : 'image' ?>">预览</a>
                                         <a href="?<?= $search ? 'search=' . urlencode($search) . '&' : '' ?>delete=<?= urlencode($file) ?>" class="delete-link" onclick="return confirm('确定删除此文件？')">删除</a>
@@ -469,8 +534,12 @@ $viewMode = $config['viewMode'];
                             $enabled = isset($config['enabledFiles'][$file]) ? $config['enabledFiles'][$file] : true;
                             ?>
                             <div class="file-item">
-                                <label style="position:absolute;top:10px;left:10px;">
-                                    <input type="checkbox" class="enable-checkbox" name="enabled[]" value="<?= htmlspecialchars($file) ?>" <?= $enabled ? 'checked' : '' ?>>
+                                <label class="switch" style="position:absolute;top:10px;left:10px;">
+                                    <input type="checkbox" class="enable-checkbox" name="enabled[]" 
+                                           value="<?= htmlspecialchars($file) ?>" 
+                                           <?= $enabled ? 'checked' : '' ?> 
+                                           onchange="document.getElementById('enabledForm').submit()">
+                                    <span class="slider round"></span>
                                 </label>
                                 <?php if ($isVideo): ?>
                                     <video data-src="<?= htmlspecialchars($fileUrl) ?>" preload="none" muted class="lazy"></video>
@@ -486,7 +555,7 @@ $viewMode = $config['viewMode'];
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
-                <button type="submit" style="margin-top:10px;">保存文件显示配置</button>
+                <!-- Remove the submit button since we're using auto-submit -->
             </form>
 
             <?php if ($totalPages > 1): ?>
@@ -757,6 +826,44 @@ $viewMode = $config['viewMode'];
         xhr.open('POST', '', true);
         xhr.send(formData);
     }
+</script>
+<script>
+document.querySelectorAll('.enable-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', function(e) {
+        e.preventDefault();
+        const form = document.getElementById('enabledForm');
+        const formData = new FormData(form);
+        
+        // 显示加载指示器或禁用复选框
+        this.disabled = true;
+        
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                // 如果保存失败，恢复复选框状态
+                this.checked = !this.checked;
+                alert(data.message || '保存失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            // 发生错误时恢复复选框状态
+            this.checked = !this.checked;
+            alert('保存失败，请重试');
+        })
+        .finally(() => {
+            // 重新启用复选框
+            this.disabled = false;
+        });
+    });
+});
 </script>
 </body>
 </html>
