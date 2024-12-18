@@ -157,6 +157,8 @@ if (is_dir($directory)) {
     let rotationY = 0;
     let lastMouseX = 0;
     let lastMouseY = 0;
+    let lastTouchX = 0;
+    let lastTouchY = 0;
 
     // 自动旋转
     function startAutoRotation() {
@@ -184,6 +186,34 @@ if (is_dir($directory)) {
     });
 
     document.addEventListener('mouseup', () => {
+        autoRotate = true;
+        startAutoRotation();
+    });
+
+    // 触摸控制
+    document.addEventListener('touchstart', (e) => {
+        autoRotate = false;
+        const touch = e.touches[0];
+        lastTouchX = touch.clientX;
+        lastTouchY = touch.clientY;
+    });
+
+    document.addEventListener('touchmove', (e) => {
+        e.preventDefault(); // 防止页面滚动
+        const touch = e.touches[0];
+        const deltaX = touch.clientX - lastTouchX;
+        const deltaY = touch.clientY - lastTouchY;
+
+        rotationY += deltaX * 0.5;
+        rotationX += deltaY * 0.5;
+
+        cube.style.transform = `rotateX(${rotationX}deg) rotateY(${rotationY}deg)`;
+
+        lastTouchX = touch.clientX;
+        lastTouchY = touch.clientY;
+    }, { passive: false });
+
+    document.addEventListener('touchend', () => {
         autoRotate = true;
         startAutoRotation();
     });
