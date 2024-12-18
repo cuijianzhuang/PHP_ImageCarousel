@@ -307,7 +307,7 @@ if (is_dir($directory)) {
         startAutoRotation();
     });
 
-    // ��大图片
+    // 大图片
     function enlargeImage(element) {
         const img = element.querySelector('img');
         const enlargedDiv = document.createElement('div');
@@ -431,147 +431,135 @@ if (is_dir($directory)) {
             { x: 0, y: 1 }, { x: 0.7, y: -0.7 }, { x: -0.7, y: -0.7 }
         ];
 
-        // 添加全局发光效果
-        const glow = document.createElement('div');
-        glow.className = 'glow';
-        document.body.appendChild(glow);
+        // 使用 DocumentFragment 减少 DOM 操作
+        const fragment = document.createDocumentFragment();
+        const containers = [];
+        const allShards = [];
+        const allEmbers = [];
+        const allAshes = [];
 
+        // 预先创建所有元素
         faces.forEach((face, index) => {
             const rect = face.getBoundingClientRect();
             const container = document.createElement('div');
             container.className = 'exploding-face';
             container.style.left = rect.left + 'px';
             container.style.top = rect.top + 'px';
-            document.body.appendChild(container);
 
-            const shards = createBurningShards(face, 12);
+            const shards = createBurningShards(face, 6); // 减少碎片数量
             shards.forEach(shard => container.appendChild(shard));
-
-            const direction = directions[index];
-            const startTime = Date.now();
-            let embers = [];
-            let ashes = [];
-
-            const animate = () => {
-                const progress = (Date.now() - startTime) / 2000;
-                if (progress >= 1) {
-                    container.remove();
-                    return;
-                }
-
-                // 碎片动画增强
-                shards.forEach((shard, i) => {
-                    const angle = (Math.PI * 2 * i) / shards.length;
-                    const speed = 1 - Math.pow(1 - progress, 2);
-                    const distance = speed * 500;
-                    const x = Math.cos(angle) * distance * direction.x;
-                    const y = Math.sin(angle) * distance * direction.y + 
-                            progress * 200 + 
-                            Math.sin(progress * 10 + i) * 20; // 添加波动
-                    const scale = Math.max(0, 1 - progress * 2);
-                    const rot = progress * 720 * (i % 2 ? 1 : -1);
-
-                    shard.style.transform = `
-                        translate(${x}px, ${y}px)
-                        rotate(${rot}deg)
-                        scale(${scale})
-                    `;
-                    shard.style.opacity = Math.max(0, 1 - progress * 2);
-
-                    // 增加火星和烟雾效果
-                    if (Math.random() < 0.3) {
-                        const ember = createEmber(container, 
-                            parseInt(shard.style.left) + x,
-                            parseInt(shard.style.top) + y
-                        );
-                        embers.push({
-                            element: ember,
-                            x: x,
-                            y: y,
-                            vx: (Math.random() - 0.5) * 15,
-                            vy: -Math.random() * 20,
-                            life: 1
-                        });
-
-                        if (Math.random() < 0.5) {
-                            createSmoke(container, 
-                                parseInt(shard.style.left) + x,
-                                parseInt(shard.style.top) + y
-                            );
-                        }
-                    }
-                });
-
-                // 增强火星动画
-                embers = embers.filter(ember => {
-                    ember.life -= 0.02;
-                    ember.vy += 0.8;
-                    ember.vx *= 0.99;
-                    ember.x += ember.vx;
-                    ember.y += ember.vy;
-                    
-                    const wobble = Math.sin(Date.now() / 100) * 2;
-                    ember.element.style.transform = `
-                        translate(${ember.x + wobble}px, ${ember.y}px)
-                        scale(${ember.life})
-                    `;
-                    ember.element.style.opacity = ember.life;
-
-                    if (ember.life <= 0) {
-                        ember.element.remove();
-                        return false;
-                    }
-                    
-                    // 随机产生灰烬
-                    if (Math.random() < 0.1 && ember.life > 0.5) {
-                        const ash = createAsh(container, ember.x, ember.y);
-                        ashes.push({
-                            element: ash,
-                            x: ember.x,
-                            y: ember.y,
-                            vx: ember.vx * 0.3,
-                            vy: Math.random() * 2,
-                            rot: Math.random() * 360
-                        });
-                    }
-                    
-                    return true;
-                });
-
-                // 增强灰烬动画
-                ashes = ashes.filter(ash => {
-                    ash.vy += 0.1;
-                    ash.vx *= 0.95;
-                    ash.x += ash.vx;
-                    ash.y += ash.vy;
-                    ash.rot += 2;
-                    
-                    ash.element.style.transform = `
-                        translate(${ash.x}px, ${ash.y}px)
-                        rotate(${ash.rot}deg)
-                    `;
-                    ash.element.style.opacity = Math.max(0, 0.3 - progress);
-
-                    if (progress > 0.9) {
-                        ash.element.remove();
-                        return false;
-                    }
-                    return true;
-                });
-
-                requestAnimationFrame(animate);
-            };
-
-            requestAnimationFrame(animate);
+            
+            fragment.appendChild(container);
+            containers.push(container);
+            allShards.push(...shards);
         });
 
-        // 隐藏原始立方体并移除发光效果
+        document.body.appendChild(fragment);
+
+        const startTime = Date.now();
+        let lastFrame = startTime;
+        const FRAME_RATE = 1000 / 60; // 限制帧率为 60fps
+
+        const animate = () => {
+            const currentTime = Date.now();
+            const deltaTime = currentTime - lastFrame;
+
+            // 限制帧率
+            if (deltaTime < FRAME_RATE) {
+                requestAnimationFrame(animate);
+                return;
+            }
+
+            const progress = (currentTime - startTime) / 2000;
+            if (progress >= 1) {
+                containers.forEach(container => container.remove());
+                location.reload();
+                return;
+            }
+
+            lastFrame = currentTime;
+
+            // 批量更新碎片
+            allShards.forEach((shard, i) => {
+                const directionIndex = Math.floor(i / 6);
+                const direction = directions[directionIndex];
+                const speed = 1 - Math.pow(1 - progress, 2);
+                const distance = speed * 500;
+                const x = Math.cos(i) * distance * direction.x;
+                const y = Math.sin(i) * distance * direction.y + progress * 200;
+                const scale = Math.max(0, 1 - progress * 2);
+                const rot = progress * 360 * (i % 2 ? 1 : -1);
+
+                // 使用 transform3d 触发 GPU 加速
+                shard.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${rot}deg) scale(${scale})`;
+                shard.style.opacity = Math.max(0, 1 - progress * 2);
+
+                // 降低火星生成频率
+                if (Math.random() < 0.1 && allEmbers.length < 30) {
+                    const ember = createEmber(containers[directionIndex], x, y);
+                    allEmbers.push({
+                        element: ember,
+                        x: x,
+                        y: y,
+                        vx: (Math.random() - 0.5) * 10,
+                        vy: -Math.random() * 15,
+                        life: 1
+                    });
+                }
+            });
+
+            // 批量更新火星
+            for (let i = allEmbers.length - 1; i >= 0; i--) {
+                const ember = allEmbers[i];
+                ember.life -= 0.02;
+                ember.vy += 0.5;
+                ember.x += ember.vx;
+                ember.y += ember.vy;
+
+                if (ember.life <= 0) {
+                    ember.element.remove();
+                    allEmbers.splice(i, 1);
+                    continue;
+                }
+
+                ember.element.style.transform = `translate3d(${ember.x}px, ${ember.y}px, 0) scale(${ember.life})`;
+                ember.element.style.opacity = ember.life;
+
+                // 降低灰烬生成频率
+                if (Math.random() < 0.05 && allAshes.length < 20) {
+                    const ash = createAsh(containers[Math.floor(i / 6)], ember.x, ember.y);
+                    allAshes.push({
+                        element: ash,
+                        x: ember.x,
+                        y: ember.y,
+                        vy: Math.random() * 2
+                    });
+                }
+            }
+
+            // 批量更新灰烬
+            for (let i = allAshes.length - 1; i >= 0; i--) {
+                const ash = allAshes[i];
+                ash.y += ash.vy;
+
+                if (progress > 0.9) {
+                    ash.element.remove();
+                    allAshes.splice(i, 1);
+                    continue;
+                }
+
+                ash.element.style.transform = `translate3d(0, ${ash.y}px, 0)`;
+                ash.element.style.opacity = Math.max(0, 0.3 - progress);
+            }
+
+            requestAnimationFrame(animate);
+        };
+
+        // 隐藏原始立方体
         cube.style.opacity = '0';
         autoRotate = false;
-        setTimeout(() => {
-            glow.remove();
-            location.reload();
-        }, 2500);
+
+        requestAnimationFrame(animate);
     }
 
     // 修改点击事件监听器
