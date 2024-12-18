@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['uploadFile']) && !is
         mkdir($directory, 0777, true);
     }
 
-    // 处理多文件上传
+    // 处理多文件��传
     $files = [];
     $fileCount = is_array($_FILES['uploadFile']['name']) ? count($_FILES['uploadFile']['name']) : 1;
 
@@ -92,29 +92,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['saveEnabledFiles'])) 
     $displayFiles = isset($_POST['displayFiles']) ? json_decode($_POST['displayFiles'], true) : [];
     $enabledFilesPost = $_POST['enabled'] ?? [];
 
-    // 更新配置
-    foreach ($displayFiles as $file) {
-        if (isset($config['enabledFiles'][$file])) {
-            $config['enabledFiles'][$file] = in_array($file, $enabledFilesPost);
-        }
-    }
+    // 添加文件锁
+    $lockFile = __DIR__ . '/config.lock';
+    $lockHandle = fopen($lockFile, 'w+');
+    
+    if (flock($lockHandle, LOCK_EX)) {  // 获取独占锁
+        try {
+            // 重新读取配置文件以确保获取最新状态
+            $config = json_decode(file_get_contents($configFile), true);
+            if (!is_array($config)) $config = [];
+            
+            // 更新配置
+            foreach ($displayFiles as $file) {
+                if (isset($config['enabledFiles'][$file])) {
+                    $config['enabledFiles'][$file] = in_array($file, $enabledFilesPost);
+                }
+            }
 
-    // 保存配置文件
-    if (file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) !== false) {
-        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
-            strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => true]);
-            exit;
+            // 保存配置文件
+            $saveSuccess = file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) !== false;
+            
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
+                strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => $saveSuccess]);
+                flock($lockHandle, LOCK_UN);  // 释放锁
+                fclose($lockHandle);
+                exit;
+            }
+        } catch (Exception $e) {
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
+                strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => '保存配置失败']);
+                flock($lockHandle, LOCK_UN);  // 释放锁
+                fclose($lockHandle);
+                exit;
+            }
         }
+        
+        flock($lockHandle, LOCK_UN);  // 释放锁
     } else {
         if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
             strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
             header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => '保存配置失败']);
+            echo json_encode(['success' => false, 'message' => '系统繁忙，请稍后重试']);
+            fclose($lockHandle);
             exit;
         }
     }
+    fclose($lockHandle);
 }
 
 // 搜索文件
@@ -129,7 +156,7 @@ if (is_dir($directory)) {
         if (in_array($ext, $allowedExtensions)) {
             // 如果有搜索条件，就过滤文件名
             if ($search === '' || stripos($f, $search) !== false) {
-                // 所有文件都添加到列表，不再检查��用状态
+                // 所有文件都添加到列表，不再检查用状态
                 $files[] = $f;
             }
         }
@@ -477,7 +504,7 @@ $viewMode = $config['viewMode'];
             <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="输入文件名关键字">
             <button type="submit">搜索</button>
             <?php if ($search): ?>
-                <a href="?">清除搜索</a>
+                <a href="?">���除搜索</a>
             <?php endif; ?>
         </form>
     </div>
@@ -561,7 +588,7 @@ $viewMode = $config['viewMode'];
                                 <div><?= htmlspecialchars($file) ?></div>
                                 <div class="action-links" style="margin-top:5px;">
                                     <a href="#" class="preview-btn" data-file="<?= htmlspecialchars($fileUrl) ?>" data-type="<?= $isVideo ? 'video' : 'image' ?>">预览</a><br>
-                                    <a href="?<?= $search ? 'search=' . urlencode($search) . '&' : '' ?>delete=<?= urlencode($file) ?>" class="delete-link" onclick="return confirm('确定删除此文件？')">删除</a>
+                                    <a href="?<?= $search ? 'search=' . urlencode($search) . '&' : '' ?>delete=<?= urlencode($file) ?>" class="delete-link" onclick="return confirm('确定删��此文件？')">删除</a>
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -840,9 +867,22 @@ $viewMode = $config['viewMode'];
     }
 </script>
 <script>
+// 添加防抖函数
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
 document.querySelectorAll('.enable-checkbox').forEach(checkbox => {
-    checkbox.addEventListener('change', function(e) {
-        e.preventDefault();
+    // 创建防抖版本的处理函数
+    const debouncedHandler = debounce(function(e) {
         const form = document.getElementById('enabledForm');
         const formData = new FormData(form);
         
@@ -874,6 +914,11 @@ document.querySelectorAll('.enable-checkbox').forEach(checkbox => {
             // 重新启用复选框
             this.disabled = false;
         });
+    }, 300); // 300ms 的防抖延迟
+
+    checkbox.addEventListener('change', function(e) {
+        e.preventDefault();
+        debouncedHandler.call(this, e);
     });
 });
 </script>
