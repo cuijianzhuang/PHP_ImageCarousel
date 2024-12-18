@@ -5,7 +5,7 @@ if (!is_array($config)) $config = [];
 $autoplayInterval = $config['autoplayInterval'] ?? 5000; // 默认5秒
 $enabledFiles = $config['enabledFiles'] ?? [];
 
-$directory = 'assets/';
+$directory = 'assets/showimg/';
 $allowedExtensions = [
     // Image formats
     'jpeg','jpg','png','gif','webp','bmp','tiff','tif','heic','heif',

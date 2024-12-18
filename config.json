@@ -1,14 +1,24 @@
 {
-    "autoplayInterval": 3000,
+    "autoplayInterval": 5000,
     "enabledFiles": {
-        "微信截图_20241217145148.png": true
+        "extrafanart-1.jpg": false,
+        "extrafanart-2.jpg": false,
+        "extrafanart-3.jpg": false,
+        "extrafanart-4.jpg": false,
+        "extrafanart-5.jpg": false,
+        "extrafanart-6.jpg": false,
+        "extrafanart-7.jpg": false,
+        "extrafanart-8.jpg": false,
+        "extrafanart-9.jpg": false,
+        "extrafanart-10.jpg": false,
+        "10001.jpg": true
     },
     "admin": {
         "username": "admin",
-        "password": "password123"
+        "password": "password"
     },
-    "viewMode": "grid",
-    "perPage": 10,
+    "viewMode": "list",
+    "perPage": 5,
     "theme": "light",
     "animation": "zoom",
     "animationEffect": "smooth"

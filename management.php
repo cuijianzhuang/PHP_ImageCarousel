@@ -29,8 +29,11 @@ $message = null;
 
 // 上传文件处理
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['uploadFile']) && !isset($_POST['saveConfigSettings']) && !isset($_POST['saveEnabledFiles'])) {
-    if (!is_dir($directory)) {
-        mkdir($directory, 0777, true);
+    $showimgDirectory = $directory . 'showimg/';
+    
+    // 确保showimg目录存在
+    if (!is_dir($showimgDirectory)) {
+        mkdir($showimgDirectory, 0777, true);
     }
 
     // 处理多文件上传
@@ -43,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['uploadFile']) && !is
         
         if (empty($uploadFileName) || empty($tmpName)) continue;
 
-        $targetFilePath = $directory . basename($uploadFileName);
+        $targetFilePath = $showimgDirectory . basename($uploadFileName);
         $ext = strtolower(pathinfo($targetFilePath, PATHINFO_EXTENSION));
 
         if (in_array($ext, $allowedExtensions)) {
@@ -98,13 +101,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['saveEnabledFiles'])) 
     
     if (flock($lockHandle, LOCK_EX)) {
         try {
-            // 确保以 UTF-8 编码读取配置文件
-            $config = json_decode(file_get_contents($configFile), true, 512, JSON_UNESCAPED_UNICODE);
+            // 确保showimg目录存在
+            $showimgDir = $directory . 'showimg/';
+            if (!is_dir($showimgDir)) {
+                mkdir($showimgDir, 0777, true);
+            }
+
+            $config = json_decode(file_get_contents($configFile), true);
             if (!is_array($config)) $config = [];
             
             foreach ($displayFiles as $file) {
-                if (isset($config['enabledFiles'][$file])) {
-                    $config['enabledFiles'][$file] = in_array($file, $enabledFilesPost);
+                $currentEnabled = isset($config['enabledFiles'][$file]) ? $config['enabledFiles'][$file] : true;
+                $newEnabled = in_array($file, $enabledFilesPost);
+                
+                if ($currentEnabled !== $newEnabled) {
+                    $sourcePath = $currentEnabled ? $showimgDir . $file : $directory . $file;
+                    $targetPath = $newEnabled ? $showimgDir . $file : $directory . $file;
+                    
+                    if (file_exists($sourcePath)) {
+                        rename($sourcePath, $targetPath);
+                    }
+                    
+                    $config['enabledFiles'][$file] = $newEnabled;
                 }
             }
 
@@ -164,14 +182,27 @@ $search = $_GET['search'] ?? '';
 // 获取文件列表
 $files = [];
 if (is_dir($directory)) {
-    $scan = array_diff(scandir($directory), ['.', '..']);
-    foreach ($scan as $f) {
+    // 扫描主目录
+    $mainFiles = array_diff(scandir($directory), ['.', '..', 'showimg']);
+    foreach ($mainFiles as $f) {
         $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
         if (in_array($ext, $allowedExtensions)) {
-            // 如果有搜索条件，就过滤文件名
             if ($search === '' || stripos($f, $search) !== false) {
-                // 所有文件都添加到列表，不再检查用状态
                 $files[] = $f;
+            }
+        }
+    }
+
+    // 扫描showimg目录
+    $showimgDir = $directory . 'showimg/';
+    if (is_dir($showimgDir)) {
+        $showimgFiles = array_diff(scandir($showimgDir), ['.', '..']);
+        foreach ($showimgFiles as $f) {
+            $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
+            if (in_array($ext, $allowedExtensions)) {
+                if ($search === '' || stripos($f, $search) !== false) {
+                    $files[] = $f;
+                }
             }
         }
     }
@@ -548,7 +579,9 @@ $viewMode = $config['viewMode'];
                             </tr>
                             <?php foreach ($displayFiles as $file):
                                 $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-                                $fileUrl = 'assets/' . $file;
+                                $fileUrl = (isset($config['enabledFiles'][$file]) && $config['enabledFiles'][$file]) 
+                                    ? 'assets/showimg/' . $file 
+                                    : 'assets/' . $file;
                                 $isVideo = in_array($ext, ['mp4', 'webm', 'ogg']);
                                 $enabled = isset($config['enabledFiles'][$file]) ? $config['enabledFiles'][$file] : true;
                                 ?>
@@ -582,7 +615,9 @@ $viewMode = $config['viewMode'];
                     <div class="files-grid">
                         <?php foreach ($displayFiles as $file):
                             $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-                            $fileUrl = 'assets/' . $file;
+                            $fileUrl = (isset($config['enabledFiles'][$file]) && $config['enabledFiles'][$file]) 
+                                ? 'assets/showimg/' . $file 
+                                : 'assets/' . $file;
                             $isVideo = in_array($ext, ['mp4', 'webm', 'ogg']);
                             $enabled = isset($config['enabledFiles'][$file]) ? $config['enabledFiles'][$file] : true;
                             ?>
