@@ -847,7 +847,7 @@ $viewMode = $config['viewMode'];
     // 点击选择文件
     selectFiles.addEventListener('click', () => fileInput.click());
     
-    // ���理拖拽事件
+    // 处理拖拽事件
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, preventDefaults, false);
     });
