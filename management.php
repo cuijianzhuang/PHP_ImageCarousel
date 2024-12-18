@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['uploadFile']) && !is
         mkdir($directory, 0777, true);
     }
 
-    // 处理多文件��传
+    // 处理多文件上传
     $files = [];
     $fileCount = is_array($_FILES['uploadFile']['name']) ? count($_FILES['uploadFile']['name']) : 1;
 
@@ -129,7 +129,7 @@ if (is_dir($directory)) {
         if (in_array($ext, $allowedExtensions)) {
             // 如果有搜索条件，就过滤文件名
             if ($search === '' || stripos($f, $search) !== false) {
-                // 所有文件都添加到列表，不再检查启用状态
+                // 所有文件都添加到列表，不再检查��用状态
                 $files[] = $f;
             }
         }
@@ -244,17 +244,29 @@ $viewMode = $config['viewMode'];
             background:#333; color:#fff; border-color:#333;
         }
         .preview-btn {
-            background:#333; color:#fff; padding:5px; border-radius:3px; text-decoration:none; font-size:14px;
-            display:inline-block; margin-bottom:5px;
+            background:#4CAF50;
+            color:#fff;
+            padding:5px;
+            border-radius:3px;
+            text-decoration:none;
+            font-size:14px;
+            display:inline-block;
+            margin-bottom:5px;
         }
         .preview-btn:hover {
-            background:#555;
+            background:#45a049;
         }
         .delete-link {
-            color:#c00;
+            color:#fff;
+            background: #ff4444;
+            padding:5px;
+            border-radius:3px;
+            text-decoration:none;
+            font-size:14px;
+            display:inline-block;
         }
         .delete-link:hover {
-            text-decoration:underline;
+            background:#cc0000;
         }
         .lazy {
             opacity:0; transition:opacity .3s;
@@ -448,7 +460,7 @@ $viewMode = $config['viewMode'];
     <!-- 上传区域 -->
     <div class="upload-area" id="dropZone">
         <h3>上传文件（图片或视频）</h3>
-        <p class="upload-hint">点击选择或拖拽文件到此处</p>
+        <p class="upload-hint">点击选择拖拽文件到此处</p>
         <form id="uploadForm" action="" method="post" enctype="multipart/form-data">
             <input type="file" name="uploadFile[]" id="fileInput" multiple accept="image/*,video/*" style="display: none;">
             <button type="button" id="selectFiles" class="upload-btn">选择文件</button>
