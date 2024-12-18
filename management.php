@@ -86,30 +86,6 @@ if (isset($_GET['delete'])) {
     }
 }
 
-// 更新配置（配置设置）
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['saveConfigSettings'])) {
-    // 间隔时间
-    if (isset($_POST['autoplayInterval'])) {
-        $interval = intval($_POST['autoplayInterval']);
-        $config['autoplayInterval'] = $interval > 0 ? $interval : 3000;
-    }
-
-    // 视图模式
-    if (isset($_POST['viewMode']) && in_array($_POST['viewMode'], ['list', 'grid'])) {
-        $config['viewMode'] = $_POST['viewMode'];
-    }
-
-    // 每页显示数
-    if (isset($_POST['perPage'])) {
-        $pp = intval($_POST['perPage']);
-        $config['perPage'] = $pp > 0 ? $pp : 10;
-    }
-
-    // 保存配置文件
-    file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-    $message = "配置已保存。";
-}
-
 // 更新配置（文件启用状态）
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['saveEnabledFiles'])) {
     // 文件启用状态
@@ -401,6 +377,7 @@ $viewMode = $config['viewMode'];
 <header>
     <div>文件管理</div>
     <div>
+        <a href="settings.php">系统设置</a>
         <a href="index.php">返回首页</a>
         <form action="logout.php" method="post" style="display:inline;">
             <button type="submit" style="background:#c33; border:none; color:#fff; padding:5px 10px; cursor:pointer; border-radius:3px;">
@@ -426,29 +403,6 @@ $viewMode = $config['viewMode'];
         <!-- 进度条容器 -->
         <div id="uploadProgress"></div>
     </div>
-
-
-    <!-- 配置设置表单 -->
-    <form class="config-form" method="post" action="">
-        <h3>配置项</h3>
-        <p>
-            轮播间隔时间（毫秒，对首页单文件无作用，可留存）：<input type="number" name="autoplayInterval" value="<?= htmlspecialchars($config['autoplayInterval']) ?>" min="100" step="100">
-        </p>
-        <p>
-            每页显示：<input type="number" name="perPage" value="<?= htmlspecialchars($config['perPage']) ?>" min="1" style="width:60px;"> 个文件
-        </p>
-        <h3>视图模式</h3>
-        <p>
-            <label>
-                <input type="radio" name="viewMode" value="list" <?= $viewMode === 'list' ? 'checked' : '' ?>> 列表视图
-            </label>
-            <label>
-                <input type="radio" name="viewMode" value="grid" <?= $viewMode === 'grid' ? 'checked' : '' ?>> 网格视图
-            </label>
-        </p>
-        <input type="hidden" name="saveConfigSettings" value="1">
-        <button type="submit">保存配置</button>
-    </form>
 
     <div class="search-form">
         <h3>搜索文件</h3>
