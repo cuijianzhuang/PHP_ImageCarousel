@@ -936,7 +936,7 @@ document.querySelectorAll('.enable-checkbox').forEach(checkbox => {
             console.error('Error:', error);
             // 只在网络错误时恢复状态和显示提示
             this.checked = originalState;
-            // 使用更友好的��误提示
+            // 使用更友好的错误提示
             console.warn('网络请求失败，请检查网络连接');
         })
         .finally(() => {
