@@ -27,6 +27,16 @@ $allowedExtensions = [
 ];
 $message = null;
 
+// 函数：确定正确的文件路径
+function getFilePath($fileName, $directory) {
+    $showimgPath = $directory . 'showimg/' . $fileName;
+    if (file_exists($showimgPath)) {
+        return $showimgPath;
+    } else {
+        return $directory . $fileName;
+    }
+}
+
 // 上传文件处理
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['uploadFile']) && !isset($_POST['saveConfigSettings']) && !isset($_POST['saveEnabledFiles'])) {
     $showimgDirectory = $directory . 'showimg/';
@@ -76,19 +86,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['uploadFile']) && !is
     }
 }
 
-// 删除文件
+// 处理单个文件删除
 if (isset($_GET['delete'])) {
     $file_to_delete = basename($_GET['delete']);
-    $file_path = $directory . $file_to_delete;
+    $file_path = getFilePath($file_to_delete, $directory);
     if (file_exists($file_path)) {
         unlink($file_path);
-        $message = "文件 '$file_to_delete' 已删除。";
         unset($config['enabledFiles'][$file_to_delete]);
-        // 保存配置文件
+        // 保存更新后的配置
         file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        $message = "文件 '$file_to_delete' 已删除。";
     } else {
         $message = "文件不存在或已被删除。";
     }
+}
+
+// 处理批量删除请求
+if (isset($_POST['batchDelete']) && isset($_POST['deleteFiles'])) {
+    $filesDeleted = 0;
+    foreach ($_POST['deleteFiles'] as $fileToDelete) {
+        $filePath = getFilePath($fileToDelete, $directory);
+        if (file_exists($filePath)) {
+            unlink($filePath);
+            unset($config['enabledFiles'][$fileToDelete]);
+            $filesDeleted++;
+        }
+    }
+    // 保存更新后的配置
+    file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    $message = "已删除 $filesDeleted 个文件。";
 }
 
 // 更新配置（文件启用状态）
@@ -568,10 +594,13 @@ $viewMode = $config['viewMode'];
                 <input type="hidden" name="current_page" value="<?= $currentPage ?>">
                 <input type="hidden" name="current_search" value="<?= htmlspecialchars($search) ?>">
                 <input type="hidden" name="displayFiles" value="<?= htmlspecialchars(json_encode($displayFiles)) ?>">
+                <!-- Add a button for batch deletion -->
+                <button type="submit" name="batchDelete" class="delete-link" onclick="return confirm('确定删除选中的文件？')">批量删除</button>
                 <?php if ($viewMode === 'list'): ?>
                     <div class="files-list">
                         <table>
                             <tr>
+                                <th><input type="checkbox" id="selectAll"></th> <!-- Add a checkbox for selecting all files -->
                                 <th>缩略图</th>
                                 <th>文件名</th>
                                 <th>轮播展示</th>
@@ -586,6 +615,9 @@ $viewMode = $config['viewMode'];
                                 $enabled = isset($config['enabledFiles'][$file]) ? $config['enabledFiles'][$file] : true;
                                 ?>
                                 <tr>
+                                    <td>
+                                        <input type="checkbox" name="deleteFiles[]" value="<?= htmlspecialchars($file) ?>">
+                                    </td>
                                     <td>
                                         <?php if ($isVideo): ?>
                                             <video data-src="<?= htmlspecialchars($fileUrl) ?>" preload="none" muted class="lazy" style="max-width:100px;max-height:60px;"></video>
@@ -815,7 +847,7 @@ $viewMode = $config['viewMode'];
     // 点击选择文件
     selectFiles.addEventListener('click', () => fileInput.click());
     
-    // 处理拖拽事件
+    // ���理拖拽事件
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, preventDefaults, false);
     });
@@ -837,7 +869,7 @@ $viewMode = $config['viewMode'];
         });
     });
     
-    // 处理文件拖放
+    // 处理文件放
     dropZone.addEventListener('drop', e => {
         const files = e.dataTransfer.files;
         handleFiles(files);
@@ -982,6 +1014,15 @@ document.querySelectorAll('.enable-checkbox').forEach(checkbox => {
     checkbox.addEventListener('change', function(e) {
         e.preventDefault();
         debouncedHandler.call(this, e);
+    });
+});
+</script>
+<script>
+// JavaScript for handling the select all checkbox
+document.getElementById('selectAll').addEventListener('change', function(e) {
+    const checkboxes = document.querySelectorAll('input[name="deleteFiles[]"]');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
     });
 });
 </script>
