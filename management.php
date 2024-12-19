@@ -259,6 +259,78 @@ $startIndex = ($currentPage - 1) * $perPage;
 $displayFiles = array_slice($files, $startIndex, $perPage);
 
 $viewMode = $config['viewMode'];
+
+// 获取文件统计信息
+function getFileStats() {
+    global $config; // 添加对全局 config 的访问
+    
+    $stats = [
+        'total_files' => 0,
+        'total_size' => 0,
+        'enabled_files' => 0, // 添加展示文件计数
+        'file_types' => []
+    ];
+    
+    $directories = [
+        __DIR__ . '/assets/',
+        __DIR__ . '/assets/showimg/'
+    ];
+    
+    $allowedExtensions = [
+        'jpeg','jpg','png','gif','webp','bmp','tiff','tif','heic','heif',
+        'mp4','avi','mov','wmv','flv','mkv','webm','ogg','m4v','mpeg','mpg','3gp'
+    ];
+    
+    // 用于跟踪已处理的文件，避免重复计算
+    $processedFiles = [];
+    
+    foreach ($directories as $dir) {
+        if (!file_exists($dir)) continue;
+        
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($dir),
+            RecursiveIteratorIterator::LEAVES_ONLY
+        );
+        
+        foreach ($files as $file) {
+            if ($file->isDir() || $file->getFilename() === '.' || $file->getFilename() === '..') continue;
+            
+            $filename = $file->getFilename();
+            $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+            
+            // 跳过不允许的文件类型
+            if (!in_array($ext, $allowedExtensions)) continue;
+            
+            // 如果文件已经处理过，跳过
+            if (in_array($filename, $processedFiles)) continue;
+            
+            $processedFiles[] = $filename;
+            $fileSize = $file->getSize();
+            
+            // 更新文件类型统计
+            if (!isset($stats['file_types'][$ext])) {
+                $stats['file_types'][$ext] = [
+                    'count' => 0,
+                    'size' => 0
+                ];
+            }
+            
+            $stats['file_types'][$ext]['count']++;
+            $stats['file_types'][$ext]['size'] += $fileSize;
+            $stats['total_files']++;
+            $stats['total_size'] += $fileSize;
+            
+            // 统计启用的文件
+            if (isset($config['enabledFiles'][$filename]) && $config['enabledFiles'][$filename]) {
+                $stats['enabled_files']++;
+            }
+        }
+    }
+    
+    return $stats;
+}
+
+$fileStats = getFileStats();
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -308,20 +380,64 @@ $viewMode = $config['viewMode'];
             background:#f9f9f9;
         }
         .files-grid {
-            display:flex; flex-wrap:wrap; gap:10px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 20px;
         }
+
         .file-item {
-            background:#fff; border:1px solid #ccc; border-radius:5px; padding:10px; width:calc(20% - 10px);
-            box-sizing:border-box; text-align:center; position:relative;
+            background: #fff;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 15px;
+            position: relative;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
+
         .file-item:hover {
-            background:#f9f9f9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
-        .file-item img, .file-item video {
-            max-width:100%; max-height:100px; display:block; margin-bottom:10px; border-radius:3px;
+
+        .file-item .media-container {
+            aspect-ratio: 16/9;
+            overflow: hidden;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            background: #f5f5f5;
+            position: relative;
         }
-        .action-links a {
-            margin-right:10px; text-decoration:none; color:#333; font-weight:bold; font-size:14px;
+
+        .file-item img,
+        .file-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .file-item .filename {
+            font-size: 14px;
+            color: #333;
+            margin: 8px 0;
+            word-break: break-all;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .file-item .action-links {
+            margin-top: auto;
+            display: flex;
+            gap: 8px;
+            justify-content: center;
         }
         .enable-checkbox {
             transform:scale(1.2);
@@ -536,6 +652,81 @@ $viewMode = $config['viewMode'];
         .slider.round:before {
             border-radius: 50%;
         }
+
+        /* 仪表盘样式 */
+        .dashboard-stats {
+            margin-bottom: 30px;
+        }
+        
+        .stats-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .dashboard-stats .stat-card {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+            width: auto;
+        }
+        
+        .dashboard-stats .stat-card h3 {
+            margin: 0 0 10px 0;
+            color: #666;
+            font-size: 16px;
+        }
+        
+        .dashboard-stats .stat-card p {
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .dashboard-stats .file-types {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .dashboard-stats .file-types h2 {
+            margin: 0 0 20px 0;
+            color: #333;
+            font-size: 18px;
+        }
+        
+        .dashboard-stats .file-types table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+        }
+        
+        .dashboard-stats .file-types th,
+        .dashboard-stats .file-types td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .dashboard-stats .file-types th {
+            background: #f5f5f5;
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .dashboard-stats .file-types tr:hover {
+            background: #f9f9f9;
+        }
+        
+        .dashboard-stats .file-types td:last-child {
+            text-align: right;
+        }
     </style>
 </head>
 <body>
@@ -553,6 +744,46 @@ $viewMode = $config['viewMode'];
 </header>
 
 <div class="wrapper">
+    <!-- 仪表盘统计区域 -->
+    <div class="dashboard-stats">
+        <div class="stats-overview">
+            <div class="stat-card">
+                <h3>总文件数</h3>
+                <p><?php echo $fileStats['total_files']; ?> 个文件</p>
+            </div>
+            <div class="stat-card">
+                <h3>展示文件数</h3>
+                <p><?php echo $fileStats['enabled_files']; ?> 个文件</p>
+            </div>
+            <div class="stat-card">
+                <h3>总存储空间</h3>
+                <p><?php echo number_format($fileStats['total_size'] / 1024 / 1024, 2); ?> MB</p>
+            </div>
+        </div>
+
+        <div class="file-types">
+            <h2>文件类型统计</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>文件类型</th>
+                        <th>数量</th>
+                        <th>总大小</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($fileStats['file_types'] as $type => $data): ?>
+                    <tr>
+                        <td>.<?php echo htmlspecialchars($type); ?></td>
+                        <td><?php echo $data['count']; ?> 个文件</td>
+                        <td><?php echo number_format($data['size'] / 1024 / 1024, 2); ?> MB</td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <?php if ($message) echo "<p class='message'>" . htmlspecialchars($message) . "</p>"; ?>
 
     <!-- 上传区域 -->
@@ -654,22 +885,42 @@ $viewMode = $config['viewMode'];
                             $enabled = isset($config['enabledFiles'][$file]) ? $config['enabledFiles'][$file] : true;
                             ?>
                             <div class="file-item">
-                                <label class="switch" style="position:absolute;top:10px;left:10px;">
+                                <label class="switch" style="position:absolute;top:10px;right:10px;z-index:1;">
                                     <input type="checkbox" class="enable-checkbox" name="enabled[]" 
                                            value="<?= htmlspecialchars($file) ?>" 
-                                           <?= $enabled ? 'checked' : '' ?> 
-                                           onchange="document.getElementById('enabledForm').submit()">
+                                           <?= $enabled ? 'checked' : '' ?>>
                                     <span class="slider round"></span>
                                 </label>
-                                <?php if ($isVideo): ?>
-                                    <video data-src="<?= htmlspecialchars($fileUrl) ?>" preload="none" muted class="lazy"></video>
-                                <?php else: ?>
-                                    <img data-src="<?= htmlspecialchars($fileUrl) ?>" alt="" class="lazy">
-                                <?php endif; ?>
-                                <div><?= htmlspecialchars($file) ?></div>
-                                <div class="action-links" style="margin-top:5px;">
-                                    <a href="#" class="preview-btn" data-file="<?= htmlspecialchars($fileUrl) ?>" data-type="<?= $isVideo ? 'video' : 'image' ?>">预览</a><br>
-                                    <a href="?<?= $search ? 'search=' . urlencode($search) . '&' : '' ?>delete=<?= urlencode($file) ?>" class="delete-link" onclick="return confirm('确定删除此文件？')">删除</a>
+                                
+                                <div class="media-container">
+                                    <?php if ($isVideo): ?>
+                                        <video data-src="<?= htmlspecialchars($fileUrl) ?>" 
+                                               preload="none" muted loop 
+                                               class="lazy"
+                                               onmouseover="this.play()" 
+                                               onmouseout="this.pause();this.currentTime=0;">
+                                        </video>
+                                    <?php else: ?>
+                                        <img data-src="<?= htmlspecialchars($fileUrl) ?>" 
+                                             alt="" class="lazy">
+                                    <?php endif; ?>
+                                </div>
+                                
+                                <div class="filename" title="<?= htmlspecialchars($file) ?>">
+                                    <?= htmlspecialchars($file) ?>
+                                </div>
+                                
+                                <div class="action-links">
+                                    <a href="#" class="preview-btn" 
+                                       data-file="<?= htmlspecialchars($fileUrl) ?>" 
+                                       data-type="<?= $isVideo ? 'video' : 'image' ?>">
+                                        预览
+                                    </a>
+                                    <a href="?<?= $search ? 'search=' . urlencode($search) . '&' : '' ?>delete=<?= urlencode($file) ?>" 
+                                       class="delete-link" 
+                                       onclick="return confirm('确定删除此文件？')">
+                                        删除
+                                    </a>
                                 </div>
                             </div>
                         <?php endforeach; ?>

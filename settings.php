@@ -39,6 +39,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
     $message = "配置已保存。";
 }
+
+// 在导航菜单数组中添加仪表盘选项
+$nav_menu = array(
+    'dashboard' => array(
+        'title' => '文件仪表盘',
+        'url' => 'dashboard.php',
+        'icon' => 'dashboard'
+    )
+);
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
