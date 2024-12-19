@@ -94,6 +94,13 @@ if (count($images) > 0) {
             display: flex;
             gap: 10px;
             z-index: 1000;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .nav-bar.hidden {
+            opacity: 0;
+            pointer-events: none;
         }
 
         .nav-bar a, .nav-bar button {
@@ -376,6 +383,40 @@ if (count($images) > 0) {
         if (savedTheme) {
             document.body.setAttribute('data-theme', savedTheme);
         }
+
+        // 添加导航栏自动隐藏功能
+        const navBar = document.querySelector('.nav-bar');
+        let hideTimeout;
+
+        function showNavBar() {
+            navBar.classList.remove('hidden');
+            clearTimeout(hideTimeout);
+            hideTimeout = setTimeout(() => {
+                navBar.classList.add('hidden');
+            }, 5000);
+        }
+
+        // 初始显示导航栏
+        showNavBar();
+
+        // 监听鼠标移动
+        document.addEventListener('mousemove', showNavBar);
+        
+        // 监听触摸事件
+        document.addEventListener('touchstart', showNavBar);
+        
+        // 当鼠标悬停在导航栏上时，清除隐藏计时器
+        navBar.addEventListener('mouseenter', () => {
+            clearTimeout(hideTimeout);
+            navBar.classList.remove('hidden');
+        });
+        
+        // 当鼠标离开导航栏时，重新开始计时
+        navBar.addEventListener('mouseleave', () => {
+            hideTimeout = setTimeout(() => {
+                navBar.classList.add('hidden');
+            }, 5000);
+        });
     });
 
     // 鼠标追随旋转

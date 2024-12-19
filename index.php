@@ -70,7 +70,15 @@ if (is_dir($directory)) {
             position:absolute; top:10px; right:10px; z-index:1000;
             display: flex;
             gap: 10px;
+            opacity: 1;
+            transition: opacity 0.5s;
         }
+
+        nav.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
         nav a, nav button {
             color: var(--text-color);
             text-decoration:none; font-weight:bold;
@@ -281,6 +289,36 @@ if (is_dir($directory)) {
         if (savedTheme) {
             document.body.setAttribute('data-theme', savedTheme);
         }
+
+        // 添加导航栏自动隐藏功能
+        const nav = document.querySelector('nav');
+        let navTimeout;
+
+        const showNav = () => {
+            nav.classList.remove('hidden');
+            
+            if (navTimeout) {
+                clearTimeout(navTimeout);
+            }
+            
+            navTimeout = setTimeout(() => {
+                nav.classList.add('hidden');
+            }, 5000);
+        };
+
+        // 初始显示
+        showNav();
+
+        // 鼠标移动时显示
+        document.addEventListener('mousemove', showNav);
+        
+        // 触摸时显示
+        document.addEventListener('touchstart', showNav);
+
+        // 点击按钮时重置计时器
+        nav.querySelectorAll('a, button').forEach(element => {
+            element.addEventListener('click', showNav);
+        });
     });
 
     class InfiniteRandomCarousel {
