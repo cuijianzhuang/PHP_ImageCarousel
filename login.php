@@ -4,7 +4,20 @@ $configFile = __DIR__ . '/config.json';
 $config = file_exists($configFile) ? json_decode(file_get_contents($configFile), true) : [];
 if (!is_array($config)) $config = [];
 $adminUser = $config['admin']['username'] ?? 'admin';
-$adminPass = $config['admin']['password'] ?? 'password123';
+$adminPass = password_hash($config['admin']['password'], PASSWORD_DEFAULT);
+
+if (!isset($_SESSION['login_attempts'])) {
+    $_SESSION['login_attempts'] = 0;
+    $_SESSION['last_attempt'] = time();
+}
+
+if ($_SESSION['login_attempts'] >= 5) {
+    if (time() - $_SESSION['last_attempt'] < 1800) { // 30分钟锁定
+        die('登录尝试次数过多，请30分钟后再试');
+    } else {
+        $_SESSION['login_attempts'] = 0;
+    }
+}
 
 if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
     header('Location: management.php');
@@ -14,7 +27,7 @@ if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
-    if ($username === $adminUser && $password === $adminPass) {
+    if ($username === $adminUser && password_verify($password, $adminPass)) {
         $_SESSION['logged_in'] = true;
         header('Location: management.php');
         exit;
