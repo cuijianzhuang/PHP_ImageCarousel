@@ -339,6 +339,7 @@ $fileStats = getFileStats();
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>文件管理</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif; background:#eef; margin:0; padding:0;
@@ -353,8 +354,9 @@ $fileStats = getFileStats();
             display:inline-block;
         }
         .wrapper {
-            max-width:1200px; margin:20px auto;
-            padding:0 20px;
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 30px;
         }
         .upload-area, .config-form, .search-form {
             background:#fff; padding:20px; margin-bottom:20px;
@@ -381,22 +383,22 @@ $fileStats = getFileStats();
         }
         .files-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 20px;
-            padding: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 25px;
+            padding: 25px;
         }
 
         .file-item {
             background: #fff;
             border: 1px solid #eee;
-            border-radius: 8px;
-            padding: 15px;
+            border-radius: 12px;
+            padding: 20px;
             position: relative;
             transition: all 0.3s ease;
             display: flex;
             flex-direction: column;
             height: 100%;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
 
         .file-item:hover {
@@ -445,17 +447,22 @@ $fileStats = getFileStats();
         }
         .pagination {
             text-align:center;
-            margin:20px 0;
+            margin:30px 0;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
         }
         .pagination a, .pagination span {
-            display:inline-block; padding:5px 10px; margin:0 5px;
-            text-decoration:none; background:#fff; border:1px solid #ccc; border-radius:3px; color:#333;
+            display:inline-block; padding:8px 16px; margin:0 5px;
+            text-decoration:none; background:#fff; border:1px solid #eee; border-radius:8px; color:#444;
+            transition: all 0.2s ease;
         }
         .pagination a:hover {
-            background:#eee;
+            background:#f8f9fa;
+            border-color: #ddd;
         }
         .pagination .current {
-            background:#333; color:#fff; border-color:#333;
+            background:#2196F3; color:#fff; border-color:#2196F3;
         }
         .preview-btn {
             background:#4CAF50;
@@ -512,10 +519,12 @@ $fileStats = getFileStats();
 
         .upload-area {
             border: 2px dashed #ccc;
-            border-radius: 8px;
+            border-radius: 12px;
+            padding: 30px;
             text-align: center;
             transition: all 0.3s ease;
             position: relative;
+            margin-bottom: 30px;
         }
         
         .upload-area.dragover {
@@ -545,9 +554,9 @@ $fileStats = getFileStats();
         
         .file-preview {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 20px;
+            margin-top: 25px;
         }
         
         .preview-item {
@@ -660,18 +669,23 @@ $fileStats = getFileStats();
         
         .stats-overview {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
         }
         
         .dashboard-stats .stat-card {
             background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.2s ease;
             text-align: center;
             width: auto;
+        }
+        
+        .dashboard-stats .stat-card:hover {
+            transform: translateY(-2px);
         }
         
         .dashboard-stats .stat-card h3 {
@@ -730,11 +744,13 @@ $fileStats = getFileStats();
 
         /* 添加工具栏按钮样式 */
         .tool-btn {
-            padding: 8px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
+            padding: 10px 20px;
+            border-radius: 8px;
             font-size: 14px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
             background: #4CAF50;
             color: white;
             transition: background-color 0.3s;
@@ -789,37 +805,37 @@ $fileStats = getFileStats();
         /* 工具栏样式 */
         .toolbar {
             background: #fff;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
+            padding: 20px 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 20px;
         }
 
         .tool-group {
             display: flex;
-            gap: 10px;
+            gap: 15px;
             flex-wrap: wrap;
         }
 
         .tool-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 16px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
+            padding: 10px 20px;
+            border-radius: 8px;
             font-size: 14px;
             font-weight: 500;
-            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #4CAF50;
             color: white;
+            transition: background-color 0.3s;
         }
 
-        .tool-btn i {
-            font-size: 14px;
+        .tool-btn:hover {
+            background: #45a049;
         }
 
         .tool-btn.primary {
@@ -890,6 +906,29 @@ $fileStats = getFileStats();
             text-align: center;
             padding: 8px;
         }
+
+        /* 添加饼图容器样式 */
+        .stats-charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin: 30px 0;
+        }
+        
+        .chart-container {
+            background: #fff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            min-height: 300px;
+        }
+        
+        .chart-title {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
@@ -922,6 +961,17 @@ $fileStats = getFileStats();
             <div class="stat-card">
                 <h3>总存储空间</h3>
                 <p><?php echo number_format($fileStats['total_size'] / 1024 / 1024, 2); ?> MB</p>
+            </div>
+        </div>
+
+        <div class="stats-charts">
+            <div class="chart-container">
+                <h3 class="chart-title">文件类型分布</h3>
+                <canvas id="fileTypesChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3 class="chart-title">存储空间占用</h3>
+                <canvas id="storageChart"></canvas>
             </div>
         </div>
 
@@ -1287,7 +1337,7 @@ $fileStats = getFileStats();
     const filePreview = document.getElementById('filePreview');
     const uploadProgress = document.getElementById('uploadProgress');
     
-    // 点击选择文件
+    // 点击选择文��
     selectFiles.addEventListener('click', () => fileInput.click());
     
     // 处理拖拽事件
@@ -1433,7 +1483,7 @@ document.querySelectorAll('.enable-checkbox').forEach(checkbox => {
         })
         .then(data => {
             // 即使返回失败，如果状态码是 200，我们认为操作是成功的
-            // CDN 可能会缓存响应，导致返回���的失败状态
+            // CDN 可能会缓存响应，导致返回的失败状态
             if (response.ok) {
                 // 保持当前状态
                 return;
@@ -1589,7 +1639,7 @@ document.getElementById('cleanupFiles').addEventListener('click', function() {
     .then(data => {
         progressBar.style.width = '100%';
         if (data.success) {
-            status.textContent = `清理完成，共删除 ${data.count} 个未使用文件`;
+            status.textContent = `清理完成，共删除 ${data.count} 个未���用文件`;
             // 显示具体删除了哪些文件
             if (data.files && data.files.length > 0) {
                 status.textContent += `\n删除的文件：${data.files.join(', ')}`;
@@ -1617,6 +1667,100 @@ document.getElementById('cleanupFiles').addEventListener('click', function() {
 
 // 初始化选中数量显示
 updateSelectionCount();
+</script>
+<script>
+// 初始化文件类型饼图
+function initFileTypesChart() {
+    const fileTypes = <?php echo json_encode(array_map(function($type, $data) {
+        return [
+            'type' => $type,
+            'count' => $data['count'],
+            'size' => $data['size']
+        ];
+    }, array_keys($fileStats['file_types']), array_values($fileStats['file_types']))); ?>;
+
+    // 文件数量饼图
+    new Chart(document.getElementById('fileTypesChart'), {
+        type: 'pie',
+        data: {
+            labels: fileTypes.map(item => '.' + item.type),
+            datasets: [{
+                data: fileTypes.map(item => item.count),
+                backgroundColor: [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+                    '#FF9F40', '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${label}: ${value} 个文件 (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // 存储空间饼图
+    new Chart(document.getElementById('storageChart'), {
+        type: 'pie',
+        data: {
+            labels: fileTypes.map(item => '.' + item.type),
+            datasets: [{
+                data: fileTypes.map(item => item.size),
+                backgroundColor: [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+                    '#FF9F40', '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            const size = (value / 1024 / 1024).toFixed(2);
+                            return `${label}: ${size} MB (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 页面加载完成后初始化图表
+document.addEventListener('DOMContentLoaded', initFileTypesChart);
 </script>
 </body>
 </html>
