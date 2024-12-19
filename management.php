@@ -202,7 +202,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['saveEnabledFiles'])) 
     fclose($lockHandle);
 }
 
-// 搜索文件
+// 搜索
 $search = $_GET['search'] ?? '';
 
 // 获取文件列表
@@ -727,7 +727,171 @@ $fileStats = getFileStats();
         .dashboard-stats .file-types td:last-child {
             text-align: right;
         }
+
+        /* 添加工具栏按钮样式 */
+        .tool-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            background: #4CAF50;
+            color: white;
+            transition: background-color 0.3s;
+        }
+
+        .tool-btn:hover {
+            background: #45a049;
+        }
+
+        .tool-btn.cleanup {
+            background: #ff9800;
+        }
+
+        .tool-btn.cleanup:hover {
+            background: #f57c00;
+        }
+
+        #selectionCount {
+            color: #666;
+            margin-left: 10px;
+        }
+
+        /* 添加清理进度对话框样式 */
+        .cleanup-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: none;
+        }
+
+        .cleanup-dialog .progress {
+            margin: 15px 0;
+            height: 4px;
+            background: #eee;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .cleanup-dialog .progress-bar {
+            height: 100%;
+            background: #4CAF50;
+            width: 0;
+            transition: width 0.3s;
+        }
+
+        /* 工具栏样式 */
+        .toolbar {
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tool-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .tool-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            color: white;
+        }
+
+        .tool-btn i {
+            font-size: 14px;
+        }
+
+        .tool-btn.primary {
+            background: #4CAF50;
+        }
+
+        .tool-btn.primary:hover {
+            background: #43A047;
+        }
+
+        .tool-btn.secondary {
+            background: #2196F3;
+        }
+
+        .tool-btn.secondary:hover {
+            background: #1E88E5;
+        }
+
+        .tool-btn.danger {
+            background: #F44336;
+        }
+
+        .tool-btn.danger:hover {
+            background: #E53935;
+        }
+
+        .tool-btn.warning {
+            background: #FF9800;
+        }
+
+        .tool-btn.warning:hover {
+            background: #F57C00;
+        }
+
+        .selection-info {
+            padding: 6px 12px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        /* 当选中文件时高亮显示 */
+        .selection-info.active {
+            background: #E3F2FD;
+            color: #1976D2;
+            font-weight: 500;
+        }
+
+        /* 复选框样式 */
+        .select-all-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        input[type="checkbox"][name="deleteFiles[]"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            vertical-align: middle;
+        }
+
+        /* 表格样式优化 */
+        .files-list table th:first-child,
+        .files-list table td:first-child {
+            width: 40px;
+            text-align: center;
+            padding: 8px;
+        }
     </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 <body>
 <header>
@@ -812,8 +976,27 @@ $fileStats = getFileStats();
     </div>
 
     <div class="files-container">
+        <div class="toolbar">
+            <div class="tool-group">
+                <button type="button" id="selectAll" class="tool-btn primary">
+                    <i class="fas fa-check-square"></i> 全选
+                </button>
+                <button type="button" id="invertSelection" class="tool-btn secondary">
+                    <i class="fas fa-exchange-alt"></i> 反选
+                </button>
+                <button type="button" id="batchDeleteBtn" class="tool-btn danger">
+                    <i class="fas fa-trash-alt"></i> 批量删除
+                </button>
+                <button type="button" id="cleanupFiles" class="tool-btn warning">
+                    <i class="fas fa-broom"></i> 清理未用文件
+                </button>
+            </div>
+            <div class="selection-info">
+                <span id="selectionCount"></span>
+            </div>
+        </div>
         <?php if (empty($displayFiles)): ?>
-            <p>没有匹配的媒体文件。</p>
+            <p>没有匹配的媒体文件</p>
         <?php else: ?>
             <div style="margin-bottom: 15px;">
                 总文件数量: <?= $totalFiles ?> 个文件 | 
@@ -825,13 +1008,13 @@ $fileStats = getFileStats();
                 <input type="hidden" name="current_page" value="<?= $currentPage ?>">
                 <input type="hidden" name="current_search" value="<?= htmlspecialchars($search) ?>">
                 <input type="hidden" name="displayFiles" value="<?= htmlspecialchars(json_encode($displayFiles)) ?>">
-                <!-- Add a button for batch deletion -->
-                <button type="submit" name="batchDelete" class="delete-link" onclick="return confirm('确定删除选中的文件？')">批量删除</button>
+                <!-- 添加 batchDelete 隐藏字段 -->
+                <input type="hidden" name="batchDelete" value="0" id="batchDeleteField">
                 <?php if ($viewMode === 'list'): ?>
                     <div class="files-list">
                         <table>
                             <tr>
-                                <th><input type="checkbox" id="selectAll"></th> <!-- Add a checkbox for selecting all files -->
+                                <th><input type="checkbox" id="selectAllInTable" class="select-all-checkbox"></th>
                                 <th>缩略图</th>
                                 <th>文件名</th>
                                 <th>轮播展示</th>
@@ -964,6 +1147,15 @@ $fileStats = getFileStats();
     </div>
 </div>
 
+<!-- 添加清理进度对话框 -->
+<div id="cleanupDialog" class="cleanup-dialog">
+    <h3>正在清理未使用文件</h3>
+    <div class="progress">
+        <div class="progress-bar"></div>
+    </div>
+    <p id="cleanupStatus">准备清理...</p>
+</div>
+
 <script>
     // 懒加载
     const lazyElements = document.querySelectorAll('.lazy');
@@ -1045,7 +1237,7 @@ $fileStats = getFileStats();
         // 创建 FormData
         const formData = new FormData(this);
 
-        // 显示进度条
+        // 示进度条
         progressContainer.style.display = 'block';
         progressBar.style.width = '0%';
         progressText.textContent = '准备上传...';
@@ -1120,7 +1312,7 @@ $fileStats = getFileStats();
         });
     });
     
-    // 处理文件放
+    // 处理文件
     dropZone.addEventListener('drop', e => {
         const files = e.dataTransfer.files;
         handleFiles(files);
@@ -1173,7 +1365,7 @@ $fileStats = getFileStats();
             if (e.lengthComputable) {
                 const percent = Math.round((e.loaded / e.total) * 100);
                 progressBar.style.width = percent + '%';
-                progressText.textContent = `上传中: ${percent}%`;
+                progressText.textContent = `上传进度：${percent}%`;
             }
         };
         
@@ -1218,7 +1410,7 @@ document.querySelectorAll('.enable-checkbox').forEach(checkbox => {
         const formData = new FormData(form);
         const originalState = this.checked;
         
-        // 显示加载指示器或禁用复选框
+        // 显示加载指示或禁用复选框
         this.disabled = true;
         
         fetch(window.location.href, {
@@ -1241,7 +1433,7 @@ document.querySelectorAll('.enable-checkbox').forEach(checkbox => {
         })
         .then(data => {
             // 即使返回失败，如果状态码是 200，我们认为操作是成功的
-            // CDN 可能会缓存响应，导致返回旧的失败状态
+            // CDN 可能会缓存响应，导致返回���的失败状态
             if (response.ok) {
                 // 保持当前状态
                 return;
@@ -1269,13 +1461,162 @@ document.querySelectorAll('.enable-checkbox').forEach(checkbox => {
 });
 </script>
 <script>
-// JavaScript for handling the select all checkbox
-document.getElementById('selectAll').addEventListener('change', function(e) {
+// 全选和反选功能
+const selectAllBtn = document.getElementById('selectAll');
+const selectAllInTable = document.getElementById('selectAllInTable');
+const checkboxes = document.querySelectorAll('input[name="deleteFiles[]"]');
+
+// 工具栏全选按钮点击事件
+selectAllBtn.addEventListener('click', function() {
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => cb.checked = !allChecked);
+    if (selectAllInTable) {
+        selectAllInTable.checked = !allChecked;
+        selectAllInTable.indeterminate = false;
+    }
+    updateSelectionCount();
+});
+
+// 表格中的全选复选框变更事件
+if (selectAllInTable) {
+    selectAllInTable.addEventListener('change', function() {
+        checkboxes.forEach(cb => cb.checked = this.checked);
+        updateSelectionCount();
+    });
+}
+
+// 反选按钮点击事件
+document.getElementById('invertSelection').addEventListener('click', function() {
+    checkboxes.forEach(cb => cb.checked = !cb.checked);
+    updateSelectionCount();
+});
+
+// 更新选中数量显示和全选状态
+function updateSelectionCount() {
+    const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+    const selectionCount = document.getElementById('selectionCount');
+    const selectionInfo = document.querySelector('.selection-info');
+    
+    // 更新选中数量显示
+    if (checkedCount > 0) {
+        selectionCount.textContent = `已选择 ${checkedCount} 个文件`;
+        selectionInfo.classList.add('active');
+    } else {
+        selectionCount.textContent = '未选择文件';
+        selectionInfo.classList.remove('active');
+    }
+
+    // 更新表格全选复选框状态
+    if (selectAllInTable) {
+        if (checkedCount === 0) {
+            selectAllInTable.checked = false;
+            selectAllInTable.indeterminate = false;
+        } else if (checkedCount === checkboxes.length) {
+            selectAllInTable.checked = true;
+            selectAllInTable.indeterminate = false;
+        } else {
+            selectAllInTable.checked = false;
+            selectAllInTable.indeterminate = true;
+        }
+    }
+}
+
+// 为所有复选框添加change事件
+checkboxes.forEach(cb => {
+    cb.addEventListener('change', updateSelectionCount);
+});
+
+// 初始化选中状态显示
+updateSelectionCount();
+</script>
+<script>
+// 更新选中数量显示
+function updateSelectionCount() {
     const checkboxes = document.querySelectorAll('input[name="deleteFiles[]"]');
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = this.checked;
+    const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+    const selectionCount = document.getElementById('selectionCount');
+    const selectionInfo = document.querySelector('.selection-info');
+    
+    if (checkedCount > 0) {
+        selectionCount.textContent = `已选择 ${checkedCount} 个文件`;
+        selectionInfo.classList.add('active');
+    } else {
+        selectionCount.textContent = '未选择文件';
+        selectionInfo.classList.remove('active');
+    }
+}
+
+// 批量删除按钮事件
+document.getElementById('batchDeleteBtn').addEventListener('click', function() {
+    const checkedCount = document.querySelectorAll('input[name="deleteFiles[]"]:checked').length;
+    if (checkedCount === 0) {
+        alert('请先选择要删除的文件');
+        return;
+    }
+    if (confirm(`确定要删除选中的 ${checkedCount} 个文件吗？此操作不可恢复。`)) {
+        // 设置 batchDelete 字段为 1
+        document.getElementById('batchDeleteField').value = '1';
+        document.getElementById('enabledForm').submit();
+    }
+});
+
+// 初始化选中状态显示
+updateSelectionCount();
+</script>
+<script>
+// 清理未使用文件功能
+document.getElementById('cleanupFiles').addEventListener('click', function() {
+    if (!confirm('确定要清理未使用的文件吗？此操作不可恢复。')) {
+        return;
+    }
+
+    const dialog = document.getElementById('cleanupDialog');
+    const status = document.getElementById('cleanupStatus');
+    const progressBar = dialog.querySelector('.progress-bar');
+    
+    dialog.style.display = 'block';
+    progressBar.style.width = '0%';
+    
+    // 修改为正确的路径
+    fetch('./plugins/cleanup.php', {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin' // 添加这行以确保发送 cookies
+    })
+    .then(response => response.json())
+    .then(data => {
+        progressBar.style.width = '100%';
+        if (data.success) {
+            status.textContent = `清理完成，共删除 ${data.count} 个未使用文件`;
+            // 显示具体删除了哪些文件
+            if (data.files && data.files.length > 0) {
+                status.textContent += `\n删除的文件：${data.files.join(', ')}`;
+            }
+            setTimeout(() => {
+                dialog.style.display = 'none';
+                location.reload();
+            }, 2000);
+        } else {
+            status.textContent = data.message || '清理失败';
+            setTimeout(() => {
+                dialog.style.display = 'none';
+            }, 2000);
+        }
+    })
+    .catch(error => {
+        console.error('清理过程发生错误:', error);
+        status.textContent = '清理过程发生错误，请查看控制台';
+        progressBar.style.backgroundColor = '#ff4444';
+        setTimeout(() => {
+            dialog.style.display = 'none';
+        }, 2000);
     });
 });
+
+// 初始化选中数量显示
+updateSelectionCount();
 </script>
 </body>
 </html>
