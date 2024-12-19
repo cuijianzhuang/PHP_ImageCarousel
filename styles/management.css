@@ -1,0 +1,16 @@
+:root {
+    --bg-color: #f0f0f0;
+    --text-color: #333;
+    --control-bg: rgba(0, 0, 0, 0.5);
+    --control-color: #fff;
+}
+
+/* 复制原文件中所有CSS内容 */
+body {
+    font-family: Arial, sans-serif; 
+    background:#eef; 
+    margin:0; 
+    padding:0;
+}
+
+/* ... 其余所有CSS样式 ... */ 
