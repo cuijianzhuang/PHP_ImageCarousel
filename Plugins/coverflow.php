@@ -26,6 +26,9 @@ foreach ($config['enabledFiles'] as $file => $enabled) {
         }
     }
 }
+
+// 随机打乱文件数组
+shuffle($enabledFiles);
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
