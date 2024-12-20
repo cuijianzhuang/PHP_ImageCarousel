@@ -72,6 +72,7 @@ function getCachedFiles($directory) {
             --text-color: #333;
             --control-bg: rgba(0, 0, 0, 0.5);
             --control-color: #fff;
+            --nav-gap: 10px;  /* 添加导航按钮间距变量 */
         }
 
         [data-theme="dark"] {
@@ -87,13 +88,21 @@ function getCachedFiles($directory) {
             background: var(--bg-color);
             color: var(--text-color);
             transition: all 0.3s ease;
+            animation: fadeInScale 0.3s ease-out;
         }
         nav {
-            position:absolute; top:10px; right:10px; z-index:1000;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
             display: flex;
-            gap: 10px;
+            gap: var(--nav-gap);
             opacity: 1;
             transition: opacity 0.5s;
+            background: rgba(0, 0, 0, 0.2);  /* 添加半透明背景 */
+            padding: 10px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);  /* 添加毛玻璃效果 */
         }
 
         nav.hidden {
@@ -103,15 +112,27 @@ function getCachedFiles($directory) {
 
         nav a, nav button {
             color: var(--text-color);
-            text-decoration:none; font-weight:bold;
+            text-decoration: none;
             background: var(--control-bg);
-            padding:10px 15px; border-radius:5px;
-            transition: background 0.3s;
+            padding: 12px 20px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
             border: none;
             cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            line-height: 1.2;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            letter-spacing: 0.3px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         nav a:hover, nav button:hover {
-            background: rgba(0, 0, 0, 0.8);
+            background: var(--control-bg);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
         }
         .carousel {
             position: relative;
@@ -143,13 +164,27 @@ function getCachedFiles($directory) {
             width: 100%; display: flex; justify-content: space-between; pointer-events:none;
         }
         .carousel-nav button {
-            background-color: rgba(0, 0, 0, 0.5); color: white;
-            border: none; padding: 15px; cursor: pointer; border-radius:50%;
-            font-size:20px; line-height:1; width:50px; height:50px; display:flex; justify-content:center; align-items:center;
-            pointer-events:auto; transition: background 0.3s;
+            background-color: var(--control-bg);
+            color: var(--control-color);
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            border-radius: 50%;
+            font-size: 24px;
+            line-height: 1;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
         .carousel-nav button:hover {
-            background-color: rgba(0, 0, 0, 0.8);
+            background-color: var(--control-bg);
+            transform: scale(1.1);
         }
         .controls {
             position:absolute; bottom:30px; left:50%; transform:translateX(-50%);
@@ -157,11 +192,24 @@ function getCachedFiles($directory) {
             z-index:1000;
         }
         .controls button {
-            background:#333; color:#fff; border:none; padding:10px 20px; border-radius:5px; cursor:pointer;
-            font-size:16px; transition: background 0.3s;
+            background: var(--control-bg);
+            color: var(--control-color);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            letter-spacing: 0.3px;
         }
         .controls button:hover {
-            background:#555;
+            background: var(--control-bg);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
         }
         .controls.hidden {
             opacity:0;
@@ -173,11 +221,15 @@ function getCachedFiles($directory) {
 
         /* 响应式调整 */
         @media(max-width:768px) {
-            .carousel-nav button {
-                padding:10px; font-size:16px; width:40px; height:40px;
+            nav a, nav button, .controls button {
+                padding: 10px 16px;
+                font-size: 14px;
             }
-            .controls button {
-                padding:8px 16px; font-size:14px;
+
+            .carousel-nav button {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
             }
         }
 
@@ -260,11 +312,31 @@ function getCachedFiles($directory) {
             opacity: 1;
             transform: perspective(1000px) rotateY(0);
         }
+
+        /* 添加页面切换动画 */
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* 添加导航栏按钮激活状态 */
+        nav a.active {
+            background: var(--control-bg);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
     </style>
 </head>
 <body>
 <nav>
     <a href="Plugins/3d-gallery.php">3D相册</a>
+    <a href="plugins/coverflow.php">Coverflow</a>
     <button onclick="toggleTheme()">切换主题</button>
     <a href="login.php">文件管理</a>
 </nav>
@@ -340,6 +412,17 @@ function getCachedFiles($directory) {
         // 点击按钮时重置计时器
         nav.querySelectorAll('a, button').forEach(element => {
             element.addEventListener('click', showNav);
+        });
+
+        // 获取当前页面路径
+        const currentPath = window.location.pathname;
+        
+        // 设置当前页面对应的导航链接为激活状态
+        const navLinks = document.querySelectorAll('nav a');
+        navLinks.forEach(link => {
+            if (link.getAttribute('href') === currentPath.split('/').pop()) {
+                link.classList.add('active');
+            }
         });
     });
 

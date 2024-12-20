@@ -104,14 +104,37 @@ if (count($images) > 0) {
         }
 
         .nav-bar a, .nav-bar button {
-            padding: 10px 20px;
-            background: var(--card-bg);
             color: var(--text-color);
             text-decoration: none;
-            border-radius: 5px;
+            background: var(--card-bg);
+            padding: 12px 20px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
             border: none;
             cursor: pointer;
-            transition: all 0.3s ease;
+            font-size: 15px;
+            font-weight: 500;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            line-height: 1.2;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            letter-spacing: 0.3px;
+            box-shadow: 0 2px 4px var(--shadow-color);
+        }
+
+        .nav-bar a:hover, .nav-bar button:hover {
+            background: var(--card-bg);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px var(--shadow-color);
+        }
+
+        /* 响应式样式 */
+        @media (max-width: 768px) {
+            .nav-bar a, .nav-bar button {
+                padding: 10px 16px;
+                font-size: 14px;
+            }
         }
 
         .cube-container {
@@ -265,7 +288,9 @@ if (count($images) > 0) {
 </head>
 <body>
 <div class="nav-bar">
-    <a href="../index.php">幻灯片模式</a>
+    <a href="../index.php">幻灯片</a>
+    <a href="#" class="active">3D相册</a>
+    <a href="coverflow.php">Coverflow</a>
     <button onclick="toggleTheme()">切换主题</button>
     <a href="../login.php">文件管理</a>
 </div>
