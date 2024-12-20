@@ -1,11 +1,12 @@
 <?php
 header('Content-Type: text/html; charset=utf-8');
 
-session_start();
-if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
-    header('Location: ../login.php');
-    exit;
-}
+// 移除登录验证相关代码
+// session_start();
+// if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
+//     header('Location: ../login.php');
+//     exit;
+// }
 
 $configFile = __DIR__ . '/../config.json';
 $config = file_exists($configFile) ? json_decode(file_get_contents($configFile), true) : [];
@@ -636,7 +637,7 @@ foreach ($config['enabledFiles'] as $file => $enabled) {
                 });
             });
 
-            // ��键盘操作时显示UI
+            // 键盘操作时显示UI
             document.addEventListener('keydown', () => {
                 showUI();
             });
