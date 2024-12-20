@@ -461,16 +461,58 @@ shuffle($enabledFiles);
             autoplayInterval = setInterval(() => {
                 currentIndex = (currentIndex + 1) % files.length;
                 
-                // 当播放到最后一张时，重新随机排序
+                // 当播放到最后一张时，平滑重新随机排序
                 if (currentIndex === 0) {
-                    // 重新随机排序文件数组
-                    shuffleArray(files);
-                    // 重建 coverflow 项目
-                    coverflowContainer.innerHTML = '';
-                    createCoverflowItems();
+                    // 淡出当前项目
+                    const items = document.querySelectorAll('.coverflow-item');
+                    items.forEach((item, index) => {
+                        // 根据索引添加不同的延迟，创建波浪效果
+                        item.style.transition = `opacity 0.5s ease ${index * 50}ms, transform 0.5s ease ${index * 50}ms`;
+                        item.style.opacity = '0';
+                        
+                        // 添加更自然的位移和缩放效果
+                        const direction = index % 2 === 0 ? 1 : -1;
+                        item.style.transform = `translateX(${100 * direction}%) scale(0.5) rotate(${10 * direction}deg)`;
+                    });
+
+                    // 延迟重建 coverflow
+                    setTimeout(() => {
+                        // 重新随机排序文件数组
+                        shuffleArray(files);
+                        
+                        // 重建 coverflow 项目
+                        coverflowContainer.innerHTML = '';
+                        createCoverflowItems();
+                        
+                        // 立即更新并淡入
+                        const newItems = document.querySelectorAll('.coverflow-item');
+                        
+                        // 初始设置新项目的起始位置和透明度
+                        newItems.forEach((item, index) => {
+                            // 添加交错效果
+                            const direction = index % 2 === 0 ? 1 : -1;
+                            item.style.transition = 'none';
+                            item.style.opacity = '0';
+                            item.style.transform = `translateX(${100 * direction}%) scale(0.5) rotate(${10 * direction}deg)`;
+                        });
+
+                        // 强制重绘
+                        void coverflowContainer.offsetWidth;
+
+                        // 应用过渡效果，添加交错和旋转
+                        newItems.forEach((item, index) => {
+                            const direction = index % 2 === 0 ? 1 : -1;
+                            item.style.transition = `all 0.6s cubic-bezier(0.4, 0, 0.2, 1) ${index * 100}ms`;
+                            item.style.opacity = '1';
+                            item.style.transform = 'translateX(0) scale(1) rotate(0deg)';
+                        });
+
+                        // 更新 Coverflow
+                        updateCoverflow();
+                    }, 500);
+                } else {
+                    updateCoverflow();
                 }
-                
-                updateCoverflow();
             }, AUTOPLAY_DELAY);
         }
 
@@ -590,7 +632,7 @@ shuffle($enabledFiles);
             updateCoverflow();
         });
 
-        // 添加自动隐藏功能
+        // 添加自隐藏功能
         document.addEventListener('DOMContentLoaded', () => {
             const header = document.querySelector('header');
             const controls = document.querySelector('.controls');
