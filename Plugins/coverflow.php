@@ -623,7 +623,8 @@ shuffle($enabledFiles);
                 // 向上滚动
                 currentIndex = (currentIndex - 1 + files.length) % files.length;
             }
-            stopAutoplay();
+            
+            // 保持当前播放状态，不强制停止自动播放
             updateCoverflow();
         }, { passive: true });
 
