@@ -336,7 +336,7 @@ function getCachedFiles($directory) {
 <body>
 <nav>
     <a href="Plugins/3d-gallery.php">3D相册</a>
-    <a href="plugins/coverflow.php">Coverflow</a>
+    <a href="Plugins/coverflow.php">Coverflow</a>
     <button onclick="toggleTheme()">切换主题</button>
     <a href="login.php">文件管理</a>
 </nav>
