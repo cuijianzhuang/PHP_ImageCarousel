@@ -460,6 +460,16 @@ shuffle($enabledFiles);
             playPauseBtn.innerHTML = '⏸';
             autoplayInterval = setInterval(() => {
                 currentIndex = (currentIndex + 1) % files.length;
+                
+                // 当播放到最后一张时，重新随机排序
+                if (currentIndex === 0) {
+                    // 重新随机排序文件数组
+                    shuffleArray(files);
+                    // 重建 coverflow 项目
+                    coverflowContainer.innerHTML = '';
+                    createCoverflowItems();
+                }
+                
                 updateCoverflow();
             }, AUTOPLAY_DELAY);
         }
@@ -468,6 +478,15 @@ shuffle($enabledFiles);
             isPlaying = false;
             playPauseBtn.innerHTML = '▶';
             clearInterval(autoplayInterval);
+        }
+
+        // 添加数组随机排序函数
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
         }
 
         // 初始化
