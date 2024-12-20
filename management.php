@@ -1628,7 +1628,7 @@ document.getElementById('cleanupFiles').addEventListener('click', function() {
     progressBar.style.width = '0%';
     
     // 修改为正确的路径
-    fetch('./plugins/cleanup.php', {
+    fetch('./Plugins/cleanup.php', {
         method: 'POST',
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
