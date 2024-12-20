@@ -1337,7 +1337,7 @@ $fileStats = getFileStats();
     const filePreview = document.getElementById('filePreview');
     const uploadProgress = document.getElementById('uploadProgress');
     
-    // 点击选择文��
+    // 点击选择文件
     selectFiles.addEventListener('click', () => fileInput.click());
     
     // 处理拖拽事件
@@ -1639,7 +1639,7 @@ document.getElementById('cleanupFiles').addEventListener('click', function() {
     .then(data => {
         progressBar.style.width = '100%';
         if (data.success) {
-            status.textContent = `清理完成，共删除 ${data.count} 个未���用文件`;
+            status.textContent = `清理完成，共删除 ${data.count} 个未使用文件`;
             // 显示具体删除了哪些文件
             if (data.files && data.files.length > 0) {
                 status.textContent += `\n删除的文件：${data.files.join(', ')}`;

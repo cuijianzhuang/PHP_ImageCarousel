@@ -350,7 +350,7 @@ shuffle($enabledFiles);
         let currentIndex = 0;
         let autoplayInterval = null;
         const AUTOPLAY_DELAY = 3000;
-        let isPlaying = false;
+        let isPlaying = true;
 
         // 创建 Coverflow 项目
         function createCoverflowItems() {
@@ -492,33 +492,31 @@ shuffle($enabledFiles);
         // 初始化
         createCoverflowItems();
         updateCoverflow();
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        playPauseBtn.innerHTML = '⏸';
+        startAutoplay();
 
         // 事件监听
         document.getElementById('prevBtn').addEventListener('click', () => {
-            stopAutoplay();
             currentIndex = (currentIndex - 1 + files.length) % files.length;
             updateCoverflow();
         });
 
         document.getElementById('nextBtn').addEventListener('click', () => {
-            stopAutoplay();
             currentIndex = (currentIndex + 1) % files.length;
             updateCoverflow();
         });
 
-        const playPauseBtn = document.getElementById('playPauseBtn');
         playPauseBtn.addEventListener('click', toggleAutoplay);
 
         // 键盘控制
         document.addEventListener('keydown', (e) => {
             switch(e.key) {
                 case 'ArrowLeft':
-                    stopAutoplay();
                     currentIndex = (currentIndex - 1 + files.length) % files.length;
                     updateCoverflow();
                     break;
                 case 'ArrowRight':
-                    stopAutoplay();
                     currentIndex = (currentIndex + 1) % files.length;
                     updateCoverflow();
                     break;
@@ -548,13 +546,10 @@ shuffle($enabledFiles);
 
             if (Math.abs(diff) > swipeThreshold) {
                 if (diff > 0) {
-                    // 向右滑动
                     currentIndex = (currentIndex - 1 + files.length) % files.length;
                 } else {
-                    // 向左滑动
                     currentIndex = (currentIndex + 1) % files.length;
                 }
-                stopAutoplay();
                 updateCoverflow();
             }
         }
