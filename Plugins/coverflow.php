@@ -50,7 +50,7 @@ foreach ($config['enabledFiles'] as $file => $enabled) {
             top: 20px;
             left: 0;
             right: 0;
-            background: rgba(0, 0, 0, 0.8);
+            background: transparent;
             padding: 15px;
             z-index: 1000;
             display: flex;
@@ -84,13 +84,15 @@ foreach ($config['enabledFiles'] as $file => $enabled) {
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            perspective: 2000px;
+            perspective: 2500px;
             width: 100vw;
             height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
             overflow: hidden;
+            padding: 20px;
+            box-sizing: border-box;
         }
 
         .coverflow {
@@ -106,56 +108,53 @@ foreach ($config['enabledFiles'] as $file => $enabled) {
 
         .coverflow-item {
             position: absolute;
-            width: min(800px, 55vw);
-            height: min(450px, 31vw);
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            width: min(1200px, 65vw);
+            height: min(800px, 75vh);
+            min-width: 280px;
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
             transform-origin: center center;
-            box-shadow: 0 4px 25px rgba(0, 0, 0, 0.6);
             will-change: transform, opacity;
-            background: #000;
-            border-radius: 8px;
-            overflow: hidden;
+            background: none;
+            overflow: visible;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            box-sizing: border-box;
         }
 
         .coverflow-item img,
         .coverflow-item video {
-            width: 100%;
-            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
             object-fit: contain;
-            background: #000;
+            background: none;
+            display: block;
+            border-radius: 0;
         }
 
+        .coverflow-item::before,
         .coverflow-item::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(
-                to bottom,
-                rgba(255, 255, 255, 0.2) 0%,
-                rgba(255, 255, 255, 0.1) 30%,
-                rgba(0, 0, 0, 0.1) 70%,
-                rgba(0, 0, 0, 0.2) 100%
-            );
-            pointer-events: none;
+            display: none;
         }
 
         .controls {
             position: fixed;
-            bottom: 50px;
+            bottom: 40px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 1000;
             display: flex;
-            gap: 25px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 15px 25px;
-            border-radius: 30px;
+            gap: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 12px 20px;
+            border-radius: 25px;
             backdrop-filter: blur(10px);
             transition: opacity 0.3s ease, transform 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
 
         .controls.hidden {
@@ -165,15 +164,15 @@ foreach ($config['enabledFiles'] as $file => $enabled) {
         }
 
         .control-btn {
-            background: none;
+            background: rgba(255, 255, 255, 0.1);
             border: none;
             color: #fff;
-            font-size: 24px;
+            font-size: 20px;
             cursor: pointer;
-            padding: 10px;
+            padding: 8px;
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
+            width: 40px;
+            height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -181,19 +180,19 @@ foreach ($config['enabledFiles'] as $file => $enabled) {
         }
 
         .control-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.2);
             transform: scale(1.1);
         }
 
         .filename {
             position: fixed;
-            bottom: 140px;
+            bottom: 110px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.7);
-            padding: 12px 25px;
-            border-radius: 20px;
-            font-size: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 15px;
+            font-size: 14px;
             color: #fff;
             z-index: 999;
             backdrop-filter: blur(10px);
@@ -202,6 +201,7 @@ foreach ($config['enabledFiles'] as $file => $enabled) {
             overflow: hidden;
             text-overflow: ellipsis;
             transition: opacity 0.3s ease, transform 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
         }
 
         .filename.hidden {
@@ -212,8 +212,10 @@ foreach ($config['enabledFiles'] as $file => $enabled) {
 
         @media (max-width: 768px) {
             .coverflow-item {
-                width: min(500px, 85vw);
-                height: min(281.25px, 48vw);
+                width: min(900px, 85vw);
+                height: min(600px, 70vh);
+                min-width: 250px;
+                padding: 0;
             }
 
             .control-btn {
@@ -223,12 +225,12 @@ foreach ($config['enabledFiles'] as $file => $enabled) {
             }
 
             .controls {
-                bottom: 40px;
-                padding: 12px 20px;
+                bottom: 20px;
+                padding: 10px 15px;
             }
 
             .filename {
-                bottom: 120px;
+                bottom: 80px;
                 font-size: 13px;
                 padding: 8px 16px;
             }
@@ -245,13 +247,13 @@ foreach ($config['enabledFiles'] as $file => $enabled) {
         .nav-bar a, .nav-bar button {
             color: #fff;
             text-decoration: none;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 12px 20px;
-            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 18px;
+            border-radius: 20px;
             transition: all 0.3s ease;
             border: none;
             cursor: pointer;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 500;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
             line-height: 1.2;
@@ -259,16 +261,20 @@ foreach ($config['enabledFiles'] as $file => $enabled) {
             align-items: center;
             justify-content: center;
             letter-spacing: 0.3px;
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(10px);
+            margin: 0 5px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
 
         .nav-bar a:hover, .nav-bar button:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.7);
             transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
         .nav-bar a.active {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.7);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
 
         /* 主题切换相关样式 */
@@ -296,15 +302,16 @@ foreach ($config['enabledFiles'] as $file => $enabled) {
 
             .nav-bar a, .nav-bar button {
                 padding: 8px 12px;
-                font-size: 14px;
+                font-size: 13px;
             }
         }
 
         /* 竖屏适配 */
         @media (orientation: portrait) {
             .coverflow-item {
-                width: min(600px, 85vw);
-                height: min(337.5px, 48vw);
+                width: min(900px, 90vw);
+                height: min(600px, 65vh);
+                min-width: 250px;
             }
         }
     </style>
@@ -379,35 +386,43 @@ foreach ($config['enabledFiles'] as $file => $enabled) {
         // 更新 Coverflow 显示
         function updateCoverflow() {
             const items = document.querySelectorAll('.coverflow-item');
-            const centerOffset = Math.floor(items.length / 2);
             const viewportWidth = window.innerWidth;
+            const isMobile = viewportWidth < 768;
             
             items.forEach((item, index) => {
                 const offset = index - currentIndex;
                 const absOffset = Math.abs(offset);
-                const zIndex = items.length - absOffset;
-                const opacity = Math.max(1 - absOffset * 0.25, 0.3);
                 
-                // 根据视口宽度调整间距
-                const spacing = viewportWidth < 768 ? 250 : 500;
-                let xTranslate = offset * spacing;
-                let zTranslate = -absOffset * 500;
-                let yRotate = offset < 0 ? 45 : -45;
+                // 计算基础参数
+                const baseSpacing = isMobile ? 200 : 400;
+                const baseScale = isMobile ? 0.8 : 0.85;
+                const maxRotation = 60;
                 
+                // 计算变换参数
+                let xTranslate = offset * baseSpacing;
+                let zTranslate = -absOffset * 300;
+                let scale = offset === 0 ? 1 : Math.max(baseScale - absOffset * 0.1, 0.6);
+                let yRotate = offset === 0 ? 0 : (offset < 0 ? maxRotation : -maxRotation);
+                let opacity = Math.max(1 - absOffset * 0.2, 0.3);
+                
+                // 中心图片特殊处理
                 if (offset === 0) {
-                    yRotate = 0;
-                    zTranslate = 200;
+                    zTranslate = 0;
+                    scale = 1;
                 }
                 
+                // 应用变换
                 item.style.transform = `
                     translateX(${xTranslate}px)
                     translateZ(${zTranslate}px)
                     rotateY(${yRotate}deg)
-                    scale(${offset === 0 ? 1.15 : 0.7})
+                    scale(${scale})
                 `;
-                item.style.zIndex = zIndex;
+                
+                // 设置层级和透明度
+                item.style.zIndex = items.length - absOffset;
                 item.style.opacity = opacity;
-
+                
                 // 处理视频播放
                 const video = item.querySelector('video');
                 if (video) {
@@ -423,7 +438,7 @@ foreach ($config['enabledFiles'] as $file => $enabled) {
             // 更新文件名显示
             if (files[currentIndex]) {
                 filenameDisplay.textContent = files[currentIndex].name;
-                filenameDisplay.style.display = 'block'; // 确保文件名可见
+                filenameDisplay.style.display = 'block';
             }
         }
 
@@ -621,7 +636,7 @@ foreach ($config['enabledFiles'] as $file => $enabled) {
                 });
             });
 
-            // 在键盘操作时显示UI
+            // ��键盘操作时显示UI
             document.addEventListener('keydown', () => {
                 showUI();
             });
