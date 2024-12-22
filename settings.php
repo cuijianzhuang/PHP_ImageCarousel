@@ -604,6 +604,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             alert('删除过程发生错误');
         });
     }
+
+    // 在音乐播放相关的 JavaScript 中添加
+    document.addEventListener('DOMContentLoaded', function() {
+        // 获取音量配置
+        fetch('config.json')
+            .then(response => response.json())
+            .then(config => {
+                const audioElement = document.getElementById('backgroundMusic');
+                if (audioElement && config.background_music && config.background_music.volume) {
+                    audioElement.volume = config.background_music.volume;
+                }
+            })
+            .catch(error => {
+                console.error('无法读取音量配置:', error);
+            });
+    });
     </script>
 </body>
 </html>
