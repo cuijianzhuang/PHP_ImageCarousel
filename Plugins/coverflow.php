@@ -1,5 +1,17 @@
 <?php
-header('Content-Type: text/html; charset=utf-8');
+// 设置页面缓存控制
+$seconds_to_cache = 3600; // 缓存时间，例如这里设置为1小时
+$ts = gmdate("D, d M Y H:i:s", time() + $seconds_to_cache) . ' GMT';
+header("Expires: $ts");
+header("Pragma: cache");
+header("Cache-Control: max-age=$seconds_to_cache");
+
+// 引入音乐播放器组件
+require_once dirname(__DIR__) . '/Plugins/music_player.php';
+
+$configFile = dirname(__DIR__) . '/config.json';
+$config = file_exists($configFile) ? json_decode(file_get_contents($configFile), true) : [];
+if (!is_array($config)) $config = [];
 
 // 移除登录验证相关代码
 // session_start();
@@ -7,9 +19,6 @@ header('Content-Type: text/html; charset=utf-8');
 //     header('Location: ../login.php');
 //     exit;
 // }
-
-$configFile = __DIR__ . '/../config.json';
-$config = file_exists($configFile) ? json_decode(file_get_contents($configFile), true) : [];
 
 // 获取启用的文件列表
 $directory = __DIR__ . '/../assets/';
@@ -37,6 +46,7 @@ shuffle($enabledFiles);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Coverflow 展示</title>
     <link href="../favicon.ico" type="image/x-icon" rel="icon">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
         body {
             margin: 0;
@@ -708,5 +718,11 @@ shuffle($enabledFiles);
             });
         });
     </script>
+
+    <!-- 在 body 结束标签前添加音乐播放器 -->
+    <?php
+    $musicPlayer = new MusicPlayer($config);
+    echo $musicPlayer->render();
+    ?>
 </body>
 </html> 

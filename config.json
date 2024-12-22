@@ -2,16 +2,7 @@
     "autoplayInterval": 5000,
     "enabledFiles": {
         "extrafanart-1.jpg": false,
-        "extrafanart-2.jpg": false,
-        "extrafanart-3.jpg": false,
-        "extrafanart-4.jpg": false,
-        "extrafanart-5.jpg": false,
-        "extrafanart-6.jpg": false,
-        "extrafanart-7.jpg": false,
-        "extrafanart-8.jpg": false,
-        "extrafanart-9.jpg": false,
-        "extrafanart-10.jpg": false,
-        "10001.jpg": true
+        "David Bowie_ 1947-2016 _ Features _ Roger Ebert.jpg": true
     },
     "admin": {
         "username": "admin",
@@ -21,5 +12,14 @@
     "perPage": 5,
     "theme": "light",
     "animation": "zoom",
-    "animationEffect": "smooth"
+    "animationEffect": "smooth",
+    "enableMusic": true,
+    "background_music": {
+        "enabled": true,
+        "file": "/assets/music/background.mp3",
+        "volume": 0.3,
+        "autoplay": true,
+        "loop": false,
+        "random": false
+    }
 }

@@ -6,6 +6,9 @@ header("Expires: $ts");
 header("Pragma: cache");
 header("Cache-Control: max-age=$seconds_to_cache");
 
+// 引入音乐播放器组件
+require_once 'Plugins/music_player.php';
+
 $configFile = __DIR__ . '/config.json';
 $config = file_exists($configFile) ? json_decode(file_get_contents($configFile), true) : [];
 if (!is_array($config)) $config = [];
@@ -41,21 +44,21 @@ if (is_dir($directory)) {
 function getCachedFiles($directory) {
     $cacheFile = __DIR__ . '/cache/files.json';
     $cacheTime = 300; // 5分钟缓存
-    
+
     if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $cacheTime) {
         return json_decode(file_get_contents($cacheFile), true);
     }
-    
+
     // 原有的文件扫描逻辑
     $files = [];
     // ... 扫描目录代码 ...
-    
+
     // 保存缓存
     if (!is_dir(__DIR__ . '/cache')) {
         mkdir(__DIR__ . '/cache');
     }
     file_put_contents($cacheFile, json_encode($files));
-    
+
     return $files;
 }
 ?>
@@ -373,7 +376,7 @@ function getCachedFiles($directory) {
         const body = document.body;
         const currentTheme = body.getAttribute('data-theme');
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        
+
         body.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
     }
@@ -390,11 +393,11 @@ function getCachedFiles($directory) {
 
         const showNav = () => {
             nav.classList.remove('hidden');
-            
+
             if (navTimeout) {
                 clearTimeout(navTimeout);
             }
-            
+
             navTimeout = setTimeout(() => {
                 nav.classList.add('hidden');
             }, 5000);
@@ -405,7 +408,7 @@ function getCachedFiles($directory) {
 
         // 鼠标移动时显示
         document.addEventListener('mousemove', showNav);
-        
+
         // 触摸时显示
         document.addEventListener('touchstart', showNav);
 
@@ -416,7 +419,7 @@ function getCachedFiles($directory) {
 
         // 获取当前页面路径
         const currentPath = window.location.pathname;
-        
+
         // 设置当前页面对应的导航链接为激活状态
         const navLinks = document.querySelectorAll('nav a');
         navLinks.forEach(link => {
@@ -462,12 +465,12 @@ function getCachedFiles($directory) {
             // Show controls on mouse move or touch
             const showControls = () => {
                 controls.classList.remove('hidden');
-                
+
                 // Clear existing timeout
                 if (this.controlsTimeout) {
                     clearTimeout(this.controlsTimeout);
                 }
-                
+
                 // Set new timeout to hide controls
                 this.controlsTimeout = setTimeout(() => {
                     controls.classList.add('hidden');
@@ -480,12 +483,12 @@ function getCachedFiles($directory) {
             // Add event listeners
             carousel.addEventListener('mousemove', showControls);
             carousel.addEventListener('touchstart', showControls);
-            
+
             // Show controls when buttons are clicked
             const pauseButton = document.getElementById('pauseBtn');
             const prevButton = document.getElementById('prev');
             const nextButton = document.getElementById('next');
-            
+
             [pauseButton, prevButton, nextButton].forEach(button => {
                 if (button) {
                     button.addEventListener('click', showControls);
@@ -628,5 +631,11 @@ function getCachedFiles($directory) {
         const infiniteCarousel = new InfiniteRandomCarousel(carouselItems, <?= intval($autoplayInterval) ?>);
     });
 </script>
+
+<?php
+// 渲染音乐播放器
+$musicPlayer = new MusicPlayer($config);
+echo $musicPlayer->render();
+?>
 </body>
 </html>

@@ -1,14 +1,25 @@
 {
-    "autoplayInterval": 3000,
+    "autoplayInterval": 5000,
     "enabledFiles": {
+        "extrafanart-1.jpg": false,
+        "extrafanart-2.jpg": false
     },
     "admin": {
         "username": "admin",
-        "password": "password123"
+        "password": "password"
     },
     "viewMode": "list",
-    "perPage": 10,
-    "theme": "dark",
+    "perPage": 5,
+    "theme": "light",
     "animation": "zoom",
-    "animationEffect": "smooth"
+    "animationEffect": "smooth",
+    "enableMusic": true,
+    "background_music": {
+        "enabled": true,
+        "file": "/assets/music/background.mp3",
+        "volume": 0.3,
+        "autoplay": true,
+        "loop": false,
+        "random": false
+    }
 }

@@ -6,6 +6,12 @@ header("Expires: $ts");
 header("Pragma: cache");
 header("Cache-Control: max-age=$seconds_to_cache");
 
+// 引入音乐播放器组件
+require_once dirname(__DIR__) . '/Plugins/music_player.php';
+
+$configFile = dirname(__DIR__) . '/config.json';
+$config = file_exists($configFile) ? json_decode(file_get_contents($configFile), true) : [];
+if (!is_array($config)) $config = [];
 $showDirectory = '../assets/showimg/';
 $baseDirectory = '../assets/';
 $allowedExtensions = ['jpeg','jpg','png','gif','webp'];
@@ -57,6 +63,7 @@ if (count($images) > 0) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D相册展示</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
         :root {
             --bg-color: #f0f0f0;
@@ -678,5 +685,10 @@ if (count($images) > 0) {
         requestAnimationFrame(startAutoRotation);
     }
 </script>
+
+<?php
+$musicPlayer = new MusicPlayer($config);
+echo $musicPlayer->render();
+?>
 </body>
 </html>
