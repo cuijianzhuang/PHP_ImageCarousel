@@ -335,7 +335,6 @@ shuffle($enabledFiles);
         <div class="nav-bar">
             <a href="../index.php">幻灯片</a>
             <a href="3d-gallery.php">3D相册</a>
-            <a href="#" class="active">Coverflow</a>
             <button onclick="toggleTheme()">切换主题</button>
             <a href="../login.php">文件管理</a>
         </div>
