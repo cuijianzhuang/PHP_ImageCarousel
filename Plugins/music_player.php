@@ -13,7 +13,7 @@ class MusicPlayer {
         
         $musicFile = $this->config['background_music']['file'];
         $volume = $this->config['background_music']['volume'] ?? 0.5;
-        $loop = $this->config['background_music']['loop'] ?? false;
+        $loop = $this->config['background_music']['loop'] ?? true;
         $random = $this->config['background_music']['random'] ?? false;
         
         ob_start();
@@ -93,9 +93,8 @@ class MusicPlayer {
         </style>
         
         <div class="music-player" id="musicPlayer">
-            <audio id="bgMusic" style="display: none;"
-                <?= $loop ? 'loop' : '' ?>
-                src="<?= htmlspecialchars($musicFile) ?>">
+            <audio id="bgMusic" style="display: none;" loop>
+                <source src="<?= htmlspecialchars($musicFile) ?>" type="audio/mpeg">
             </audio>
             <button class="play-btn" id="musicToggle"></button>
         </div>
@@ -180,10 +179,12 @@ class MusicPlayer {
                 // 随机播放功能
                 playNext();
                 <?php else: ?>
+                // 继续播放当前音频（虽然有 loop 属性，但为了保险起见）
                 if (!audio.loop) {
-                    isPlaying = false;
-                    player.classList.remove('playing');
-                    toggle.className = 'play-btn';
+                    audio.currentTime = 0;
+                    audio.play().catch(function(error) {
+                        console.log("重新播放失败:", error);
+                    });
                 }
                 <?php endif; ?>
             });
