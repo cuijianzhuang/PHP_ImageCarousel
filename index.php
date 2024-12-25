@@ -23,19 +23,43 @@ $allowedExtensions = [
     // Video formats
     'mp4','avi','mov','wmv','flv','mkv','webm','ogg','m4v','mpeg','mpg', '3gp'
 ];
+$enabledImages = $config['enabledFiles']['images'] ?? [];
+$enabledVideos = $config['enabledFiles']['videos'] ?? [];
+
+// 定义允许的文件扩展名
+$imageExtensions = ['jpeg', 'jpg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'tif', 'heic', 'heif'];
+$videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm', 'ogg', 'm4v', 'mpeg', 'mpg', '3gp'];
+
 $slides = [];
 if (is_dir($directory)) {
     $files = array_diff(scandir($directory), ['.', '..']);
     foreach ($files as $file) {
         $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-        if (in_array($ext, $allowedExtensions)) {
-            $enabled = isset($enabledFiles[$file]) ? $enabledFiles[$file] : true;
+        
+        // 处理图片文件
+        if (in_array($ext, $imageExtensions)) {
+            $enabled = isset($enabledImages[$file]) ? $enabledImages[$file] : true;
             if ($enabled) {
-                $slides[] = $file;
+                $slides[] = [
+                    'type' => 'image',
+                    'file' => $file,
+                    'path' => $directory . $file
+                ];
+            }
+        }
+        // 处理视频文件
+        elseif (in_array($ext, $videoExtensions)) {
+            $enabled = isset($enabledVideos[$file]) ? $enabledVideos[$file] : true;
+            if ($enabled) {
+                $slides[] = [
+                    'type' => 'video',
+                    'file' => $file,
+                    'path' => $directory . $file
+                ];
             }
         }
     }
-
+    
     // 随机打乱幻灯片顺序
     shuffle($slides);
 }
@@ -347,15 +371,21 @@ function getCachedFiles($directory) {
 <?php if (!empty($slides)): ?>
     <div class="carousel">
         <div class="carousel-track">
-            <?php foreach ($slides as $file):
-                $filePath = $directory . $file;
-                $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-                if (in_array($ext, ['mp4', 'webm', 'ogg'])) {
-                    echo "<div class='carousel-item'><video src='$filePath' controls muted preload='none'></video></div>";
-                } else {
-                    echo "<div class='carousel-item'><img src='$filePath' alt=''></div>";
-                }
-            endforeach; ?>
+            <?php foreach ($slides as $slide): ?>
+                <div class="carousel-item">
+                    <?php if ($slide['type'] === 'video'): ?>
+                        <video src="<?= htmlspecialchars($slide['path']) ?>" 
+                               controls 
+                               muted 
+                               preload="metadata"
+                               playsinline
+                               loop>
+                        </video>
+                    <?php else: ?>
+                        <img src="<?= htmlspecialchars($slide['path']) ?>" alt="">
+                    <?php endif; ?>
+                </div>
+            <?php endforeach; ?>
         </div>
         <div class="carousel-nav">
             <button id="prev">‹</button>

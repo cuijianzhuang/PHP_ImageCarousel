@@ -1,8 +1,11 @@
 {
     "autoplayInterval": 5000,
     "enabledFiles": {
-        "extrafanart-1.jpg": false,
-        "extrafanart-2.jpg": false
+        "images": {
+            "extrafanart-1.jpg": false,
+            "extrafanart-2.jpg": false
+        },
+        "videos": {}
     },
     "admin": {
         "username": "admin",
