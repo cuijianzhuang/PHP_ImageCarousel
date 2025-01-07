@@ -187,8 +187,14 @@ function getCachedFiles($directory) {
             background: #000; /* 黑色背景填充空白区域 */
         }
         .carousel-nav {
-            position: absolute; top: 50%; transform: translateY(-50%);
-            width: 100%; display: flex; justify-content: space-between; pointer-events:none;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            transition: opacity 0.3s ease; /* 添加过渡效果 */
         }
         .carousel-nav button {
             background-color: var(--control-bg);
@@ -208,6 +214,7 @@ function getCachedFiles($directory) {
             transition: all 0.3s ease;
             backdrop-filter: blur(5px);
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            margin: 0 20px; /* 添加左右边距 */
         }
         .carousel-nav button:hover {
             background-color: var(--control-bg);
@@ -357,6 +364,23 @@ function getCachedFiles($directory) {
             background: var(--control-bg);
             transform: translateY(-1px);
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 添加键盘操作提示 */
+        .carousel-nav button::after {
+            position: absolute;
+            bottom: -25px;
+            font-size: 12px;
+            color: var(--text-color);
+            opacity: 0.7;
+        }
+
+        .carousel-nav button:first-child::after {
+            /*content: '← 左方向键';*/
+        }
+
+        .carousel-nav button:last-child::after {
+            /*content: '右方向键 →';*/
         }
     </style>
 </head>
@@ -659,6 +683,72 @@ function getCachedFiles($directory) {
     document.addEventListener('DOMContentLoaded', () => {
         const carouselItems = document.querySelectorAll('.carousel-item');
         const infiniteCarousel = new InfiniteRandomCarousel(carouselItems, <?= intval($autoplayInterval) ?>);
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const carousel = document.querySelector('.carousel');
+        const carouselNav = document.querySelector('.carousel-nav');
+        const prevBtn = document.getElementById('prev');
+        const nextBtn = document.getElementById('next');
+        let hideTimeout;
+
+        function showControls() {
+            carouselNav.style.opacity = '1';
+            clearTimeout(hideTimeout);
+            hideTimeout = setTimeout(() => {
+                if (!isMouseOverControls) {
+                    carouselNav.style.opacity = '0';
+                }
+            }, 5000);
+        }
+
+        let isMouseOverControls = false;
+
+        // 监听鼠标移动
+        document.addEventListener('mousemove', showControls);
+
+        // 监听触摸事件
+        document.addEventListener('touchstart', showControls);
+
+        // 监听鼠标悬停在控制按钮上的情况
+        carouselNav.addEventListener('mouseenter', () => {
+            isMouseOverControls = true;
+            showControls();
+        });
+
+        carouselNav.addEventListener('mouseleave', () => {
+            isMouseOverControls = false;
+            showControls();
+        });
+
+        // 初始显示控制按钮
+        showControls();
+
+        // 添加键盘控制
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    prevBtn.click();
+                    showControls();
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    nextBtn.click();
+                    showControls();
+                    break;
+                case ' ': // 空格键
+                    e.preventDefault();
+                    document.getElementById('pauseBtn').click();
+                    showControls();
+                    break;
+            }
+        });
+
+        // 点击控制按钮时重置隐藏计时器
+        [prevBtn, nextBtn].forEach(btn => {
+            btn.addEventListener('click', showControls);
+        });
     });
 </script>
 

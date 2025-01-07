@@ -23,21 +23,18 @@ class MusicPlayer {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            z-index: 1000;
-            width: 50px;
-            height: 50px;
             background: rgba(0, 0, 0, 0.6);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            backdrop-filter: blur(5px);
+            padding: 10px;
+            border-radius: 8px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
         }
         
-        .music-player:hover {
-            background: rgba(0, 0, 0, 0.8);
+        .music-player.hidden {
+            opacity: 0;
+            transform: translateY(20px);
+            pointer-events: none;
         }
         
         .music-player .play-btn,
@@ -212,6 +209,49 @@ class MusicPlayer {
                     audio.play();
                 }
             });
+
+            const musicPlayer = document.querySelector('.music-player');
+            let hideTimeout;
+
+            function showMusicPlayer() {
+                musicPlayer.classList.remove('hidden');
+                clearTimeout(hideTimeout);
+                hideTimeout = setTimeout(() => {
+                    if (!isMouseOverPlayer) {
+                        musicPlayer.classList.add('hidden');
+                    }
+                }, 5000);
+            }
+
+            let isMouseOverPlayer = false;
+
+            // 监听鼠标移动
+            document.addEventListener('mousemove', showMusicPlayer);
+
+            // 监听触摸事件
+            document.addEventListener('touchstart', showMusicPlayer);
+
+            // 监听鼠标悬停在播放器上的情况
+            musicPlayer.addEventListener('mouseenter', () => {
+                isMouseOverPlayer = true;
+                showMusicPlayer();
+            });
+
+            musicPlayer.addEventListener('mouseleave', () => {
+                isMouseOverPlayer = false;
+                showMusicPlayer();
+            });
+
+            // 初始显示播放器
+            showMusicPlayer();
+
+            // 在点击播放器按钮时重置计时器
+            musicPlayer.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', showMusicPlayer);
+            });
+
+            // 键盘操作时显示播放器
+            document.addEventListener('keydown', showMusicPlayer);
         });
         </script>
         <?php
