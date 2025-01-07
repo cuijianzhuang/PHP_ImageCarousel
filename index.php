@@ -852,13 +852,9 @@ function getCachedFiles($directory) {
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        const carouselItems = document.querySelectorAll('.carousel-item');
-        const infiniteCarousel = new InfiniteRandomCarousel(carouselItems, <?= intval($autoplayInterval) ?>);
-    });
-
-    document.addEventListener('DOMContentLoaded', () => {
         const carousel = document.querySelector('.carousel');
         let hideTimeout;
+        let carouselInstance; // 添加变量存储轮播实例
 
         function showControls() {
             clearTimeout(hideTimeout);
@@ -875,17 +871,17 @@ function getCachedFiles($directory) {
         // 初始显示控制按钮
         showControls();
 
-        // 添加键盘控制
+        // 修改键盘事件处理
         document.addEventListener('keydown', (e) => {
             switch(e.key) {
                 case 'ArrowLeft':
                     e.preventDefault();
-                    prevBtn.click();
+                    carouselInstance.handleClick('prev');
                     showControls();
                     break;
                 case 'ArrowRight':
                     e.preventDefault();
-                    nextBtn.click();
+                    carouselInstance.handleClick('next');
                     showControls();
                     break;
                 case ' ': // 空格键
@@ -896,10 +892,9 @@ function getCachedFiles($directory) {
             }
         });
 
-        // 点击控制按钮时重置隐藏计时器
-        [prevBtn, nextBtn].forEach(btn => {
-            btn.addEventListener('click', showControls);
-        });
+        // 初始化轮播实例并保存引用
+        const carouselItems = document.querySelectorAll('.carousel-item');
+        carouselInstance = new InfiniteRandomCarousel(carouselItems, <?= intval($autoplayInterval) ?>);
     });
 </script>
 
