@@ -234,19 +234,43 @@ if (is_dir($directory)) {
     }
 }
 
-// 对文件列表进行排序，优先显示启用的文件
-usort($files, function($a, $b) use ($config) {
+// 在获取文件列表后，添加排序功能
+// 在 $files = []; 后添加:
+
+$sortBy = $_GET['sort'] ?? 'name'; // 默认按名称排序
+$sortOrder = $_GET['order'] ?? 'asc'; // 默认升序
+
+// 修改排序函数
+usort($files, function($a, $b) use ($config, $sortBy, $sortOrder, $directory) {
     $enabledA = isset($config['enabledFiles'][$a]) ? $config['enabledFiles'][$a] : true;
     $enabledB = isset($config['enabledFiles'][$b]) ? $config['enabledFiles'][$b] : true;
-
-    // 启用的文件排在前面
+    
+    // 首先按启用状态排序
     if ($enabledA !== $enabledB) {
         return $enabledA ? -1 : 1;
     }
-
-    // 如果启用状态相同，按文件名排序
-    return strcmp($a, $b);
+    
+    // 然后按选择的条件排序
+    $fileA = getFilePath($a, $directory);
+    $fileB = getFilePath($b, $directory);
+    
+    switch($sortBy) {
+        case 'size':
+            $comp = filesize($fileA) - filesize($fileB);
+            break;
+        case 'date':
+            $comp = filemtime($fileA) - filemtime($fileB);
+            break;
+        case 'type':
+            $comp = pathinfo($a, PATHINFO_EXTENSION) <=> pathinfo($b, PATHINFO_EXTENSION);
+            break;
+        default: // name
+            $comp = strcmp($a, $b);
+    }
+    
+    return $sortOrder === 'asc' ? $comp : -$comp;
 });
+
 // 分页
 $perPage = $config['perPage'];
 $totalFiles = count($files);
@@ -267,7 +291,7 @@ function getFileStats() {
     $stats = [
         'total_files' => 0,
         'total_size' => 0,
-        'enabled_files' => 0, // 添加展示文件计数
+        'enabled_files' => 0,
         'file_types' => []
     ];
     
@@ -283,6 +307,7 @@ function getFileStats() {
     
     // 用于跟踪已处理的文件，避免重复计算
     $processedFiles = [];
+    $enabledCount = 0;
     
     foreach ($directories as $dir) {
         if (!file_exists($dir)) continue;
@@ -319,18 +344,30 @@ function getFileStats() {
             $stats['file_types'][$ext]['size'] += $fileSize;
             $stats['total_files']++;
             $stats['total_size'] += $fileSize;
-            
-            // 统计启用的文件
-            if (isset($config['enabledFiles'][$filename]) && $config['enabledFiles'][$filename]) {
-                $stats['enabled_files']++;
-            }
         }
+    }
+    
+    // 单独计算启用的文件数量
+    if (isset($config['enabledFiles']) && is_array($config['enabledFiles'])) {
+        $stats['enabled_files'] = count(array_filter($config['enabledFiles'], function($enabled) {
+            return $enabled === true;
+        }));
     }
     
     return $stats;
 }
 
 $fileStats = getFileStats();
+
+function formatFileSize($bytes) {
+    $units = ['B', 'KB', 'MB', 'GB'];
+    $i = 0;
+    while ($bytes >= 1024 && $i < count($units) - 1) {
+        $bytes /= 1024;
+        $i++;
+    }
+    return round($bytes, 2) . ' ' . $units[$i];
+}
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -498,23 +535,79 @@ $fileStats = getFileStats();
 
         /* 模态框样式 */
         .modal {
-            display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.7);
-            justify-content:center; align-items:center;
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0);
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.3s ease;
         }
+
+        .modal.show {
+            background: rgba(0,0,0,0.7);
+        }
+
         .modal-content {
-            background:#fff; padding:20px; border-radius:5px; position:relative; max-width:90%; max-height:90%;
-            display:flex; flex-direction:column; align-items:center; box-shadow:0 0 10px rgba(0,0,0,.3);
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            position: relative;
+            max-width: 95%;
+            max-height: 95vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            opacity: 0;
+            transform: scale(0.8);
+            transition: all 0.3s ease;
+            overflow: visible; /* 改为 visible，允许关闭按钮溢出 */
+            margin: 20px; /* 添加外边距，确保按钮有足够空间 */
         }
-        .modal-content img, .modal-content video {
-            max-width:100%; max-height:80vh; margin-bottom:10px;
+
+        .modal.show .modal-content {
+            opacity: 1;
+            transform: scale(1);
         }
+
+        .modal-content img,
+        .modal-content video {
+            max-width: 100%;
+            max-height: 80vh;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
         .modal-close {
-            position:absolute; top:10px; right:10px; background:#333; color:#fff; border:none; border-radius:50%;
-            width:30px; height:30px; display:flex; justify-content:center; align-items:center; cursor:pointer;
-            font-size:20px; line-height:1;
+            position: absolute;
+            top: -20px; /* 稍微上移 */
+            right: -20px; /* 稍微右移 */
+            background: #333;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 40px; /* 增加按钮大小 */
+            height: 40px; /* 增加按钮大小 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 24px;
+            line-height: 1;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 1; /* 确保按钮始终在最上层 */
         }
+
         .modal-close:hover {
-            background:#555;
+            background: #555;
+            transform: scale(1.1);
         }
 
         .upload-area {
@@ -929,6 +1022,98 @@ $fileStats = getFileStats();
             margin-bottom: 15px;
             text-align: center;
         }
+
+        .sort-link {
+            color: #333;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sort-link:hover {
+            color: #2196F3;
+        }
+
+        .files-list th {
+            position: relative;
+            padding-right: 20px;
+        }
+
+        .preview-nav {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            transform: translateY(-50%);
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            pointer-events: none;
+        }
+
+        .nav-btn {
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            pointer-events: auto;
+            opacity: 0.7;
+        }
+
+        .nav-btn:hover {
+            background: rgba(0, 0, 0, 0.8);
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .modal-content:hover .nav-btn {
+            opacity: 1;
+        }
+
+        #previewContainer {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden; /* 添加此行 */
+        }
+
+        #previewContainer img {
+            max-width: 100%;
+            max-height: calc(95vh - 40px); /* 减去padding空间 */
+            object-fit: contain;
+            margin: 0;
+        }
+
+        #previewContainer video {
+            max-width: 100%;
+            max-height: calc(95vh - 40px);
+            object-fit: contain;
+            margin: 0;
+        }
+
+        .loading {
+            color: #666;
+            font-size: 16px;
+            padding: 20px;
+        }
+        
+        .error-message {
+            color: #ff4444;
+            font-size: 16px;
+            padding: 20px;
+        }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
@@ -1066,7 +1251,26 @@ $fileStats = getFileStats();
                             <tr>
                                 <th><input type="checkbox" id="selectAllInTable" class="select-all-checkbox"></th>
                                 <th>缩略图</th>
-                                <th>文件名</th>
+                                <th>
+                                    <a href="?sort=name&order=<?= $sortBy === 'name' && $sortOrder === 'asc' ? 'desc' : 'asc' ?>" class="sort-link">
+                                        文件名 <?= $sortBy === 'name' ? ($sortOrder === 'asc' ? '↑' : '↓') : '' ?>
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="?sort=type&order=<?= $sortBy === 'type' && $sortOrder === 'asc' ? 'desc' : 'asc' ?>" class="sort-link">
+                                        类型 <?= $sortBy === 'type' ? ($sortOrder === 'asc' ? '↑' : '↓') : '' ?>
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="?sort=size&order=<?= $sortBy === 'size' && $sortOrder === 'asc' ? 'desc' : 'asc' ?>" class="sort-link">
+                                        大小 <?= $sortBy === 'size' ? ($sortOrder === 'asc' ? '↑' : '↓') : '' ?>
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="?sort=date&order=<?= $sortBy === 'date' && $sortOrder === 'asc' ? 'desc' : 'asc' ?>" class="sort-link">
+                                        修改日期 <?= $sortBy === 'date' ? ($sortOrder === 'asc' ? '↑' : '↓') : '' ?>
+                                    </a>
+                                </th>
                                 <th>轮播展示</th>
                                 <th>操作</th>
                             </tr>
@@ -1090,6 +1294,9 @@ $fileStats = getFileStats();
                                         <?php endif; ?>
                                     </td>
                                     <td><?= htmlspecialchars($file) ?></td>
+                                    <td><?= htmlspecialchars(pathinfo($file, PATHINFO_EXTENSION)) ?></td>
+                                    <td><?= formatFileSize(filesize(getFilePath($file, $directory))) ?></td>
+                                    <td><?= date('Y-m-d H:i', filemtime(getFilePath($file, $directory))) ?></td>
                                     <td>
                                         <label class="switch">
                                             <input type="checkbox" class="enable-checkbox" name="enabled[]" 
@@ -1236,36 +1443,38 @@ $fileStats = getFileStats();
     const previewContainer = document.getElementById('previewContainer');
     const modalClose = document.getElementById('modalClose');
 
-    previewBtns.forEach(btn => {
+    previewBtns.forEach((btn, index) => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
-            const fileUrl = btn.getAttribute('data-file');
-            const fileType = btn.getAttribute('data-type');
-            previewContainer.innerHTML = '';
-            if (fileType === 'image') {
-                const img = document.createElement('img');
-                img.src = fileUrl;
-                previewContainer.appendChild(img);
-            } else {
-                const video = document.createElement('video');
-                video.src = fileUrl;
-                video.controls = true;
-                video.autoplay = true;
-                previewContainer.appendChild(video);
-            }
             modal.style.display = 'flex';
+            
+            setTimeout(() => {
+                modal.classList.add('show');
+                showPreview(index);
+            }, 10);
         });
     });
 
-    modalClose.addEventListener('click', () => {
-        modal.style.display = 'none';
-        previewContainer.innerHTML = '';
-    });
+    function closeModal() {
+        modal.classList.remove('show');
+        setTimeout(() => {
+            modal.style.display = 'none';
+            previewContainer.innerHTML = '';
+        }, 300); // 等待过渡动画完成
+    }
+
+    modalClose.addEventListener('click', closeModal);
 
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
-            modal.style.display = 'none';
-            previewContainer.innerHTML = '';
+            closeModal();
+        }
+    });
+
+    // 添加键盘事件支持
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.style.display === 'flex') {
+            closeModal();
         }
     });
 </script>
@@ -1761,6 +1970,113 @@ function initFileTypesChart() {
 
 // 页面加载完成后初始化图表
 document.addEventListener('DOMContentLoaded', initFileTypesChart);
+</script>
+<script>
+    const previewFiles = <?php echo json_encode(array_map(function($file) use ($config) {
+        $fileUrl = (isset($config['enabledFiles'][$file]) && $config['enabledFiles'][$file]) 
+            ? 'assets/showimg/' . $file 
+            : 'assets/' . $file;
+        return [
+            'url' => $fileUrl,
+            'type' => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['mp4', 'webm', 'ogg']) ? 'video' : 'image'
+        ];
+    }, $displayFiles)); ?>;
+
+    let currentPreviewIndex = -1;
+
+    function showPreview(index) {
+        if (index < 0 || index >= previewFiles.length) return;
+        
+        currentPreviewIndex = index;
+        const file = previewFiles[index];
+        previewContainer.innerHTML = '';
+        
+        if (file.type === 'image') {
+            const img = new Image();
+            img.onload = function() {
+                previewContainer.innerHTML = ''; // 清除可能的加载提示
+                previewContainer.appendChild(img);
+                
+                // 更新导航按钮状态
+                updateNavButtons();
+            };
+            img.onerror = function() {
+                previewContainer.innerHTML = '<div class="error-message">图片加载失败</div>';
+            };
+            
+            // 添加加载提示
+            previewContainer.innerHTML = '<div class="loading">加载中...</div>';
+            img.src = file.url;
+        } else {
+            const video = document.createElement('video');
+            video.src = file.url;
+            video.controls = true;
+            video.autoplay = true;
+            video.style.maxWidth = '100%';
+            video.style.maxHeight = 'calc(95vh - 40px)';
+            previewContainer.appendChild(video);
+            
+            // 更新导航按钮状态
+            updateNavButtons();
+        }
+    }
+
+    // 添加导航按钮状态更新函数
+    function updateNavButtons() {
+        const prevBtn = document.querySelector('.nav-btn.prev');
+        const nextBtn = document.querySelector('.nav-btn.next');
+        
+        if (prevBtn) {
+            prevBtn.style.visibility = currentPreviewIndex > 0 ? 'visible' : 'hidden';
+        }
+        if (nextBtn) {
+            nextBtn.style.visibility = currentPreviewIndex < previewFiles.length - 1 ? 'visible' : 'hidden';
+        }
+    }
+
+    // 添加加载提示和错误消息的样式
+    const style = document.createElement('style');
+    style.textContent = `
+        .loading {
+            color: #666;
+            font-size: 16px;
+            padding: 20px;
+        }
+        
+        .error-message {
+            color: #ff4444;
+            font-size: 16px;
+            padding: 20px;
+        }
+    `;
+    document.head.appendChild(style);
+</script>
+<script>
+    // 添加键盘事件
+    document.addEventListener('keydown', (e) => {
+        if (modal.style.display === 'flex') {
+            switch(e.key) {
+                case 'Escape':
+                    closeModal();
+                    break;
+                case 'ArrowLeft':
+                    showPreview(currentPreviewIndex - 1);
+                    break;
+                case 'ArrowRight':
+                    showPreview(currentPreviewIndex + 1);
+                    break;
+            }
+        }
+    });
+
+    // 添加导航按钮到模态框
+    const modalContent = document.querySelector('.modal-content');
+    modalContent.insertAdjacentHTML('beforeend', `
+        <div class="preview-nav">
+            <button class="nav-btn prev" onclick="showPreview(currentPreviewIndex - 1)">‹</button>
+            <button class="nav-btn next" onclick="showPreview(currentPreviewIndex + 1)">›</button>
+        </div>
+    `);
 </script>
 </body>
 </html>
