@@ -186,40 +186,6 @@ function getCachedFiles($directory) {
             width:100%; height:100%; object-fit: contain;
             background: #000; /* 黑色背景填充空白区域 */
         }
-        .carousel-nav {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            pointer-events: none;
-            transition: opacity 0.3s ease; /* 添加过渡效果 */
-        }
-        .carousel-nav button {
-            background-color: var(--control-bg);
-            color: var(--control-color);
-            border: none;
-            padding: 0;
-            cursor: pointer;
-            border-radius: 50%;
-            font-size: 24px;
-            line-height: 1;
-            width: 50px;
-            height: 50px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            pointer-events: auto;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(5px);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-            margin: 0 20px; /* 添加左右边距 */
-        }
-        .carousel-nav button:hover {
-            background-color: var(--control-bg);
-            transform: scale(1.1);
-        }
         .controls {
             position:absolute; bottom:30px; left:50%; transform:translateX(-50%);
             display:flex; gap:20px; opacity:1; transition: opacity 0.5s;
@@ -258,12 +224,6 @@ function getCachedFiles($directory) {
             nav a, nav button, .controls button {
                 padding: 10px 16px;
                 font-size: 14px;
-            }
-
-            .carousel-nav button {
-                width: 40px;
-                height: 40px;
-                font-size: 20px;
             }
         }
 
@@ -467,6 +427,80 @@ function getCachedFiles($directory) {
             transform: rotate(0) scale(1) translate(0, 0);
             filter: hue-rotate(0);
         }
+
+        /* 波纹效果 */
+        .ripple-transition {
+            opacity: 0;
+            transform: scale(0.3);
+            filter: blur(20px);
+            transition: all 2s cubic-bezier(0.4, 0, 0.2, 1.2);
+        }
+        .ripple-transition.active {
+            opacity: 1;
+            transform: scale(1);
+            filter: blur(0);
+        }
+
+        /* 3D翻转效果 */
+        .flip-3d-transition {
+            opacity: 0;
+            transform: perspective(1000px) rotateY(-90deg) scale(0.8);
+            transform-origin: center;
+            transition: all 2s cubic-bezier(0.4, 0, 0.2, 1.2);
+        }
+        .flip-3d-transition.active {
+            opacity: 1;
+            transform: perspective(1000px) rotateY(0) scale(1);
+        }
+
+        /* 弹性缩放 */
+        .elastic-transition {
+            opacity: 0;
+            transform: scale(1.5);
+            transition: all 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        .elastic-transition.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* 折叠效果 */
+        .fold-transition {
+            opacity: 0;
+            transform-origin: top;
+            transform: perspective(1000px) rotateX(-90deg);
+            transition: all 2s cubic-bezier(0.4, 0, 0.2, 1.2);
+        }
+        .fold-transition.active {
+            opacity: 1;
+            transform: perspective(1000px) rotateX(0);
+        }
+
+        /* 棋盘效果 */
+        .checkerboard-transition {
+            opacity: 0;
+            clip-path: inset(0 0 100% 0);
+            filter: saturate(0);
+            transition: all 2s cubic-bezier(0.4, 0, 0.2, 1.2);
+        }
+        .checkerboard-transition.active {
+            opacity: 1;
+            clip-path: inset(0 0 0 0);
+            filter: saturate(1);
+        }
+
+        /* 百叶窗效果 */
+        .blinds-transition {
+            opacity: 0;
+            transform: perspective(1000px);
+            transform-origin: 50% 0;
+            transform: rotateX(-90deg);
+            transition: all 1.5s cubic-bezier(0.4, 0, 0.2, 1.2);
+        }
+        .blinds-transition.active {
+            opacity: 1;
+            transform: rotateX(0);
+        }
     </style>
 </head>
 <body>
@@ -495,10 +529,6 @@ function getCachedFiles($directory) {
                     <?php endif; ?>
                 </div>
             <?php endforeach; ?>
-        </div>
-        <div class="carousel-nav">
-            <button id="prev">‹</button>
-            <button id="next">›</button>
         </div>
         <div class="controls" id="controls">
             <button id="pauseBtn">暂停</button>
@@ -574,8 +604,6 @@ function getCachedFiles($directory) {
             this.currentIndex = -1;
             this.autoplayInterval = autoplayInterval;
             this.isPaused = false;
-            this.history = [];
-            this.maxHistoryLength = 3;
             this.transitions = [
                 'fade-transition',
                 'zoom-transition',
@@ -590,16 +618,27 @@ function getCachedFiles($directory) {
                 'blur-fade-transition',
                 'swing-transition',
                 'diagonal-transition',
-                'spiral-transition'
+                'spiral-transition',
+                'ripple-transition',
+                'flip-3d-transition',
+                'elastic-transition',
+                'fold-transition',
+                'checkerboard-transition',
+                'blinds-transition'
             ];
-            this.lastTransition = '';
-            this.controlsTimeout = null;
-            this.lastTransitions = [];
-            this.init();
+            this.currentTransitions = new Map(); // 使用Map来跟踪每个item当前的过渡效果
+            this.transitionHistory = [];
+            this.maxHistoryLength = 5; // 记录最近使用的5个效果
+            this.isTransitioning = false; // 添加过渡状态标志
+            items.length > 0 && this.init();
         }
 
         init() {
-            this.next();
+            // 重置过渡历史记录
+            this.transitionHistory = [];
+            
+            const firstIndex = this.getRandomIndex();
+            this.updateCarousel(firstIndex);
             this.startAutoplay();
             this.bindEvents();
             this.setupControlsVisibility();
@@ -633,46 +672,36 @@ function getCachedFiles($directory) {
 
             // Show controls when buttons are clicked
             const pauseButton = document.getElementById('pauseBtn');
-            const prevButton = document.getElementById('prev');
-            const nextButton = document.getElementById('next');
 
-            [pauseButton, prevButton, nextButton].forEach(button => {
-                if (button) {
-                    button.addEventListener('click', showControls);
-                }
-            });
+            if (pauseButton) {
+                pauseButton.addEventListener('click', showControls);
+            }
         }
 
-        getRandomTransitions() {
-            // 随机选择2-3个过渡效果
-            const numEffects = Math.floor(Math.random() * 2) + 2;
-            const selectedEffects = [];
-            const availableTransitions = [...this.transitions];
-
-            // 移除上一次使用的效果，确保不重复
-            this.lastTransitions.forEach(last => {
-                const index = availableTransitions.indexOf(last);
-                if (index > -1) {
-                    availableTransitions.splice(index, 1);
-                }
-            });
-
-            // 如果可用效果不足，重新填充
-            if (availableTransitions.length < numEffects) {
-                availableTransitions.push(...this.transitions.filter(t => !this.lastTransitions.includes(t)));
+        getRandomTransition() {
+            // 过滤掉最近使用过的过渡效果
+            let availableTransitions = this.transitions.filter(t => 
+                !this.transitionHistory.includes(t)
+            );
+            
+            // 如果所有过渡效果都用过了，重置历史记录
+            if (availableTransitions.length === 0) {
+                this.transitionHistory = [];
+                availableTransitions = [...this.transitions];
             }
-
-            // 选择新的效果组合
-            for (let i = 0; i < numEffects; i++) {
-                if (availableTransitions.length === 0) break;
-                const randomIndex = Math.floor(Math.random() * availableTransitions.length);
-                const effect = availableTransitions.splice(randomIndex, 1)[0];
-                selectedEffects.push(effect);
+            
+            // 随机选择一个可用的过渡效果
+            const randomIndex = Math.floor(Math.random() * availableTransitions.length);
+            const selectedTransition = availableTransitions[randomIndex];
+            
+            // 更新历史记录
+            this.transitionHistory.push(selectedTransition);
+            if (this.transitionHistory.length > this.maxHistoryLength) {
+                this.transitionHistory.shift();
             }
-
-            // 更新上一次使用的效果记录
-            this.lastTransitions = selectedEffects;
-            return selectedEffects;
+            
+            console.log('Selected transition:', selectedTransition); // 用于调试
+            return selectedTransition;
         }
 
         getRandomIndex() {
@@ -683,68 +712,77 @@ function getCachedFiles($directory) {
             return randomIndex;
         }
 
-        updateCarousel(newIndex) {
-            // 移除当前项目的活动状态和所有过渡类
-            if (this.currentIndex >= 0) {
-                const currentItem = this.items[this.currentIndex];
-                currentItem.classList.remove('active');
+        updateCarousel(newIndex, isManualChange = false) {
+            // 获取当前项和下一项
+            const currentItem = this.currentIndex >= 0 ? this.items[this.currentIndex] : null;
+            const nextItem = this.items[newIndex];
+            
+            // 为下一项选择新的随机过渡效果
+            const newTransition = this.getRandomTransition();
+            
+            // 清理所有项的过渡效果和激活状态
+            this.items.forEach(item => {
+                item.style.display = 'none';
+                item.classList.remove('active');
                 this.transitions.forEach(transition => {
-                    currentItem.classList.remove(transition);
+                    item.classList.remove(transition);
                 });
-            }
-
-            // 更新索引
-            this.currentIndex = newIndex;
-            const nextItem = this.items[this.currentIndex];
-
-            // 获取随机过渡效果组合
-            const selectedEffects = this.getRandomTransitions();
-
-            // 应用选中的过渡效果
-            selectedEffects.forEach(effect => {
-                nextItem.classList.add(effect);
             });
+            
+            // 准备下一项
+            nextItem.style.display = '';
+            
+            // 使用 RAF 链来确保正确的动画序列
+            requestAnimationFrame(() => {
+                nextItem.classList.add(newTransition);
+                
+                requestAnimationFrame(() => {
+                    nextItem.offsetHeight;
+                    
+                    requestAnimationFrame(() => {
+                        nextItem.classList.add('active');
+                        this.currentIndex = newIndex;
+                        this.handleMediaPlayback(newIndex);
+                        
+                        // 在过渡结束后重置状态
+                        setTimeout(() => {
+                            this.isTransitioning = false;
+                            
+                            // 如果是手动切换，延迟重启自动播放
+                            if (isManualChange && !this.isPaused) {
+                                this.startAutoplay();
+                            }
+                        }, 2000); // 等待过渡动画完成
+                    });
+                });
+            });
+        }
 
-            // 确保过渡效果生效
-            setTimeout(() => {
-                nextItem.classList.add('active');
-            }, 50);
-
-            // 媒体控制
+        handleMediaPlayback(newIndex) {
             this.items.forEach((item, index) => {
                 const media = item.querySelector('video');
                 if (media) {
-                    if (index === this.currentIndex) {
+                    if (index === newIndex) {
                         media.currentTime = 0;
-                        media.play().catch(e => console.log('播放错误:', e));
+                        const playPromise = media.play();
+                        if (playPromise) {
+                            playPromise.catch(e => console.log('视频播放错误:', e));
+                        }
                     } else {
                         media.pause();
                     }
                 }
             });
-
-            // 在过渡结束后清理效果
-            const cleanupTransitions = () => {
-                if (this.currentIndex !== newIndex) return;
-                selectedEffects.forEach(effect => {
-                    if (nextItem !== this.items[this.currentIndex]) {
-                        nextItem.classList.remove(effect);
-                    }
-                });
-            };
-
-            // 监听过渡结束
-            nextItem.addEventListener('transitionend', cleanupTransitions, { once: true });
         }
 
         next() {
             const nextIndex = this.getRandomIndex();
-            this.updateCarousel(nextIndex);
+            this.updateCarousel(nextIndex, true);
         }
 
         prev() {
             const prevIndex = this.getRandomIndex();
-            this.updateCarousel(prevIndex);
+            this.updateCarousel(prevIndex, true);
         }
 
         startAutoplay() {
@@ -768,29 +806,21 @@ function getCachedFiles($directory) {
         }
 
         bindEvents() {
-            const nextButton = document.getElementById('next');
-            const prevButton = document.getElementById('prev');
             const pauseButton = document.getElementById('pauseBtn');
 
-            if (nextButton) {
-                nextButton.addEventListener('click', () => {
-                    this.next();
-                    this.startAutoplay();
-                });
-            }
-
-            if (prevButton) {
-                prevButton.addEventListener('click', () => {
-                    this.prev();
-                    this.startAutoplay();
-                });
-            }
+            // 保留键盘事件支持
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft') {
+                    this.handleClick('prev');
+                } else if (e.key === 'ArrowRight') {
+                    this.handleClick('next');
+                }
+            });
 
             if (pauseButton) {
                 pauseButton.addEventListener('click', () => {
                     const isPaused = this.togglePause();
                     pauseButton.textContent = isPaused ? '继续' : '暂停';
-
                     if (isPaused) {
                         this.stopAutoplay();
                     } else {
@@ -798,21 +828,26 @@ function getCachedFiles($directory) {
                     }
                 });
             }
+        }
 
-            // 监听过渡结束事件
-            this.items.forEach(item => {
-                item.addEventListener('transitionend', () => {
-                    this.transitions.forEach(transition => {
-                        if (item !== this.items[this.currentIndex]) {
-                            item.classList.remove(transition);
-                        }
-                    });
-                });
-            });
+        handleClick(direction) {
+            // 如果正在过渡中，忽略点击
+            if (this.isTransitioning) {
+                return;
+            }
 
-            window.addEventListener('resize', () => {
-                this.updateCarousel(this.currentIndex);
-            });
+            // 停止当前的自动播放
+            this.stopAutoplay();
+            
+            // 设置过渡标志
+            this.isTransitioning = true;
+            
+            // 执行切换
+            if (direction === 'next') {
+                this.next();
+            } else {
+                this.prev();
+            }
         }
     }
 
@@ -823,39 +858,19 @@ function getCachedFiles($directory) {
 
     document.addEventListener('DOMContentLoaded', () => {
         const carousel = document.querySelector('.carousel');
-        const carouselNav = document.querySelector('.carousel-nav');
-        const prevBtn = document.getElementById('prev');
-        const nextBtn = document.getElementById('next');
         let hideTimeout;
 
         function showControls() {
-            carouselNav.style.opacity = '1';
             clearTimeout(hideTimeout);
             hideTimeout = setTimeout(() => {
-                if (!isMouseOverControls) {
-                    carouselNav.style.opacity = '0';
-                }
             }, 5000);
         }
-
-        let isMouseOverControls = false;
 
         // 监听鼠标移动
         document.addEventListener('mousemove', showControls);
 
         // 监听触摸事件
         document.addEventListener('touchstart', showControls);
-
-        // 监听鼠标悬停在控制按钮上的情况
-        carouselNav.addEventListener('mouseenter', () => {
-            isMouseOverControls = true;
-            showControls();
-        });
-
-        carouselNav.addEventListener('mouseleave', () => {
-            isMouseOverControls = false;
-            showControls();
-        });
 
         // 初始显示控制按钮
         showControls();
