@@ -177,7 +177,7 @@ function getCachedFiles($directory) {
             width: 100%;
             height: 100%;
             opacity: 0;
-            transition: all 0.8s ease;
+            transition: all 2s cubic-bezier(0.4, 0, 0.2, 1.2);
         }
         .carousel-item.active {
             opacity: 1;
@@ -271,6 +271,7 @@ function getCachedFiles($directory) {
         .fade-transition {
             opacity: 0;
             transform: scale(1);
+            transition: all 2s cubic-bezier(0.4, 0, 0.2, 1.2);
         }
         .fade-transition.active {
             opacity: 1;
@@ -281,6 +282,7 @@ function getCachedFiles($directory) {
         .zoom-transition {
             opacity: 0;
             transform: scale(0.3);
+            transition: all 2s cubic-bezier(0.4, 0, 0.2, 1.2);
         }
         .zoom-transition.active {
             opacity: 1;
@@ -291,6 +293,7 @@ function getCachedFiles($directory) {
         .slide-left-transition {
             opacity: 0;
             transform: translateX(100%);
+            transition: all 2s cubic-bezier(0.4, 0, 0.2, 1.2);
         }
         .slide-left-transition.active {
             opacity: 1;
@@ -301,6 +304,7 @@ function getCachedFiles($directory) {
         .slide-right-transition {
             opacity: 0;
             transform: translateX(-100%);
+            transition: all 2s cubic-bezier(0.4, 0, 0.2, 1.2);
         }
         .slide-right-transition.active {
             opacity: 1;
@@ -311,6 +315,7 @@ function getCachedFiles($directory) {
         .slide-up-transition {
             opacity: 0;
             transform: translateY(100%);
+            transition: all 2s cubic-bezier(0.4, 0, 0.2, 1.2);
         }
         .slide-up-transition.active {
             opacity: 1;
@@ -321,6 +326,7 @@ function getCachedFiles($directory) {
         .slide-down-transition {
             opacity: 0;
             transform: translateY(-100%);
+            transition: all 2s cubic-bezier(0.4, 0, 0.2, 1.2);
         }
         .slide-down-transition.active {
             opacity: 1;
@@ -331,6 +337,7 @@ function getCachedFiles($directory) {
         .rotate-scale-transition {
             opacity: 0;
             transform: rotate(180deg) scale(0.3);
+            transition: all 2s cubic-bezier(0.4, 0, 0.2, 1.2);
         }
         .rotate-scale-transition.active {
             opacity: 1;
@@ -341,6 +348,7 @@ function getCachedFiles($directory) {
         .flip-transition {
             opacity: 0;
             transform: perspective(1000px) rotateY(90deg);
+            transition: all 2s cubic-bezier(0.4, 0, 0.2, 1.2);
         }
         .flip-transition.active {
             opacity: 1;
@@ -381,6 +389,83 @@ function getCachedFiles($directory) {
 
         .carousel-nav button:last-child::after {
             /*content: '右方向键 →';*/
+        }
+
+        /* 添加新的过渡效果 */
+        
+        /* 缩放淡入 */
+        .zoom-fade-transition {
+            opacity: 0;
+            transform: scale(1.5);
+            filter: brightness(2);
+            transition: all 2s cubic-bezier(0.4, 0, 0.2, 1.2);
+        }
+        .zoom-fade-transition.active {
+            opacity: 1;
+            transform: scale(1);
+            filter: brightness(1);
+        }
+
+        /* 旋转淡入 */
+        .rotate-fade-transition {
+            opacity: 0;
+            transform: rotate(-45deg) scale(0.5);
+            filter: blur(10px);
+            transition: all 2s cubic-bezier(0.4, 0, 0.2, 1.2);
+        }
+        .rotate-fade-transition.active {
+            opacity: 1;
+            transform: rotate(0) scale(1);
+            filter: blur(0);
+        }
+
+        /* 模糊淡入 */
+        .blur-fade-transition {
+            opacity: 0;
+            filter: blur(50px) brightness(2);
+            transform: scale(0.9);
+            transition: all 2s cubic-bezier(0.4, 0, 0.2, 1.2);
+        }
+        .blur-fade-transition.active {
+            opacity: 1;
+            filter: blur(0) brightness(1);
+            transform: scale(1);
+        }
+
+        /* 摆动效果 */
+        .swing-transition {
+            opacity: 0;
+            transform: rotate(15deg) scale(0.7);
+            transform-origin: top center;
+            transition: all 2s cubic-bezier(0.4, 0, 0.2, 1.2);
+        }
+        .swing-transition.active {
+            opacity: 1;
+            transform: rotate(0) scale(1);
+        }
+
+        /* 对角线滑入 */
+        .diagonal-transition {
+            opacity: 0;
+            transform: translate(-100%, 100%) rotate(-45deg);
+            transition: all 2s cubic-bezier(0.4, 0, 0.2, 1.2);
+        }
+        .diagonal-transition.active {
+            opacity: 1;
+            transform: translate(0, 0) rotate(0);
+        }
+
+        /* 螺旋效果 */
+        .spiral-transition {
+            opacity: 0;
+            transform: rotate(360deg) scale(0) translate(100px, 100px);
+            filter: hue-rotate(90deg);
+            transition: all 2s cubic-bezier(0.4, 0, 0.2, 1.2);
+        }
+        .spiral-transition.active {
+            opacity: 1;
+            transform: rotate(0) scale(1) translate(0, 0);
+            filter: hue-rotate(0);
         }
     </style>
 </head>
@@ -499,9 +584,17 @@ function getCachedFiles($directory) {
                 'slide-up-transition',
                 'slide-down-transition',
                 'rotate-scale-transition',
-                'flip-transition'
+                'flip-transition',
+                'zoom-fade-transition',
+                'rotate-fade-transition',
+                'blur-fade-transition',
+                'swing-transition',
+                'diagonal-transition',
+                'spiral-transition'
             ];
+            this.lastTransition = '';
             this.controlsTimeout = null;
+            this.lastTransitions = [];
             this.init();
         }
 
@@ -550,26 +643,48 @@ function getCachedFiles($directory) {
             });
         }
 
-        getRandomTransition() {
-            return this.transitions[Math.floor(Math.random() * this.transitions.length)];
+        getRandomTransitions() {
+            // 随机选择2-3个过渡效果
+            const numEffects = Math.floor(Math.random() * 2) + 2;
+            const selectedEffects = [];
+            const availableTransitions = [...this.transitions];
+
+            // 移除上一次使用的效果，确保不重复
+            this.lastTransitions.forEach(last => {
+                const index = availableTransitions.indexOf(last);
+                if (index > -1) {
+                    availableTransitions.splice(index, 1);
+                }
+            });
+
+            // 如果可用效果不足，重新填充
+            if (availableTransitions.length < numEffects) {
+                availableTransitions.push(...this.transitions.filter(t => !this.lastTransitions.includes(t)));
+            }
+
+            // 选择新的效果组合
+            for (let i = 0; i < numEffects; i++) {
+                if (availableTransitions.length === 0) break;
+                const randomIndex = Math.floor(Math.random() * availableTransitions.length);
+                const effect = availableTransitions.splice(randomIndex, 1)[0];
+                selectedEffects.push(effect);
+            }
+
+            // 更新上一次使用的效果记录
+            this.lastTransitions = selectedEffects;
+            return selectedEffects;
         }
 
         getRandomIndex() {
             let randomIndex;
             do {
                 randomIndex = Math.floor(Math.random() * this.items.length);
-            } while (this.history.includes(randomIndex) && this.history.length < this.items.length);
-
-            this.history.push(randomIndex);
-            if (this.history.length > this.maxHistoryLength) {
-                this.history.shift();
-            }
-
+            } while (randomIndex === this.currentIndex);
             return randomIndex;
         }
 
         updateCarousel(newIndex) {
-            // 移除当前项目的活动状态和过渡类
+            // 移除当前项目的活动状态和所有过渡类
             if (this.currentIndex >= 0) {
                 const currentItem = this.items[this.currentIndex];
                 currentItem.classList.remove('active');
@@ -582,9 +697,13 @@ function getCachedFiles($directory) {
             this.currentIndex = newIndex;
             const nextItem = this.items[this.currentIndex];
 
-            // 应用新的过渡效果
-            const transition = this.getRandomTransition();
-            nextItem.classList.add(transition);
+            // 获取随机过渡效果组合
+            const selectedEffects = this.getRandomTransitions();
+
+            // 应用选中的过渡效果
+            selectedEffects.forEach(effect => {
+                nextItem.classList.add(effect);
+            });
 
             // 确保过渡效果生效
             setTimeout(() => {
@@ -603,11 +722,29 @@ function getCachedFiles($directory) {
                     }
                 }
             });
+
+            // 在过渡结束后清理效果
+            const cleanupTransitions = () => {
+                if (this.currentIndex !== newIndex) return;
+                selectedEffects.forEach(effect => {
+                    if (nextItem !== this.items[this.currentIndex]) {
+                        nextItem.classList.remove(effect);
+                    }
+                });
+            };
+
+            // 监听过渡结束
+            nextItem.addEventListener('transitionend', cleanupTransitions, { once: true });
         }
 
         next() {
             const nextIndex = this.getRandomIndex();
             this.updateCarousel(nextIndex);
+        }
+
+        prev() {
+            const prevIndex = this.getRandomIndex();
+            this.updateCarousel(prevIndex);
         }
 
         startAutoplay() {
@@ -644,8 +781,7 @@ function getCachedFiles($directory) {
 
             if (prevButton) {
                 prevButton.addEventListener('click', () => {
-                    const prevIndex = this.getRandomIndex();
-                    this.updateCarousel(prevIndex);
+                    this.prev();
                     this.startAutoplay();
                 });
             }
