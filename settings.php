@@ -469,6 +469,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script>
     function updateVolumeValue(value) {
         document.getElementById('volumeValue').textContent = Math.round(value * 100) + '%';
+        
+        // 使用 BroadcastChannel 发送消息到所有页面
+        const volumeChannel = new BroadcastChannel('volumeControl');
+        volumeChannel.postMessage({
+            type: 'volumeChange',
+            volume: parseFloat(value)
+        });
+        
+        // 更新当前页面的音乐播放器（如果存在）
+        const bgMusic = document.getElementById('bgMusic');
+        if (bgMusic) {
+            bgMusic.volume = parseFloat(value);
+            localStorage.setItem('musicVolume', value);
+        }
     }
 
     function showMusicSelector() {
@@ -619,6 +633,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             .catch(error => {
                 console.error('无法读取音量配置:', error);
             });
+    });
+
+    // 页面加载时初始化音量显示
+    document.addEventListener('DOMContentLoaded', function() {
+        const volumeInput = document.querySelector('input[name="background_music[volume]"]');
+        if (volumeInput) {
+            updateVolumeValue(volumeInput.value);
+        }
     });
     </script>
 </body>

@@ -105,14 +105,26 @@ class MusicPlayer {
             // 设置默认状态为播放
             let isPlaying = true;
             
-            // 获取保存的音量
-            const savedVolume = parseFloat(localStorage.getItem('musicVolume') || '<?= $volume ?>');
+            // 设置初始音量
+            audio.volume = <?= $volume ?>; // 直接使用 PHP 变量设置初始音量
+            
+            // 获取保存的音量（如果有的话）
+            const savedVolume = localStorage.getItem('musicVolume');
+            if (savedVolume !== null) {
+                audio.volume = parseFloat(savedVolume);
+            }
+            
+            // 使用 BroadcastChannel 监听音量变化
+            const volumeChannel = new BroadcastChannel('volumeControl');
+            volumeChannel.onmessage = (event) => {
+                if (event.data.type === 'volumeChange') {
+                    audio.volume = event.data.volume;
+                    localStorage.setItem('musicVolume', event.data.volume);
+                }
+            };
             
             // 获取保存的播放进度
             const savedTime = parseFloat(localStorage.getItem('musicTime') || '0');
-
-            // 设置音量
-            audio.volume = savedVolume;
 
             // 保存音量设置
             audio.addEventListener('volumechange', () => {
