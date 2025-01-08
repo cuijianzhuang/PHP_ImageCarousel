@@ -15,8 +15,9 @@ class MusicPlayer {
         
         $musicFile = normalizeMusicPath($this->config['background_music']['file']);
         $volume = $this->config['background_music']['volume'] ?? 0.5;
-        $loop = $this->config['background_music']['loop'] ?? true;
+        $loop = $this->config['background_music']['loop'] ?? false;
         $random = $this->config['background_music']['random'] ?? false;
+        $autoplay = $this->config['background_music']['autoplay'] ?? false;
         
         ob_start();
         ?>
@@ -49,6 +50,7 @@ class MusicPlayer {
             display: flex;
             align-items: center;
             justify-content: center;
+            cursor: pointer;
         }
         
         .music-player .play-btn::before {
@@ -76,23 +78,10 @@ class MusicPlayer {
         .music-player .pause-btn::after {
             right: 4px;
         }
-        
-        .music-player.playing {
-            animation: rotate 8s linear infinite;
-        }
-        
-        @keyframes rotate {
-            from {
-                transform: rotate(0deg);
-            }
-            to {
-                transform: rotate(360deg);
-            }
-        }
         </style>
         
         <div class="music-player" id="musicPlayer">
-            <audio id="bgMusic" style="display: none;" loop>
+            <audio id="bgMusic" style="display: none;" <?= $loop ? 'loop' : '' ?>>
                 <source src="<?= htmlspecialchars($musicFile) ?>" type="audio/mpeg">
             </audio>
             <button class="play-btn" id="musicToggle"></button>
@@ -104,13 +93,12 @@ class MusicPlayer {
             const player = document.getElementById('musicPlayer');
             const toggle = document.getElementById('musicToggle');
             
-            // 设置默认状态为播放
-            let isPlaying = true;
+            let isPlaying = false;
             
             // 设置初始音量
-            audio.volume = <?= $volume ?>; // 直接使用 PHP 变量设置初始音量
+            audio.volume = <?= $volume ?>;
             
-            // 获取保存的音量（如果有的话）
+            // 获取保存的音量
             const savedVolume = localStorage.getItem('musicVolume');
             if (savedVolume !== null) {
                 audio.volume = parseFloat(savedVolume);
@@ -121,104 +109,81 @@ class MusicPlayer {
             volumeChannel.onmessage = (event) => {
                 if (event.data.type === 'volumeChange') {
                     audio.volume = event.data.volume;
-                    // 更新音量显示（如果有的话）
-                    const volumeDisplay = document.getElementById('volumeDisplay');
-                    if (volumeDisplay) {
-                        volumeDisplay.textContent = Math.round(event.data.volume * 100) + '%';
-                    }
+                    localStorage.setItem('musicVolume', event.data.volume);
                 }
             };
 
-            // 保存音量设置
-            audio.addEventListener('volumechange', () => {
-                localStorage.setItem('musicVolume', audio.volume);
+            <?php if ($random): ?>
+            // 获取音乐列表（如果启用了随机播放）
+            let musicFiles = [];
+            let currentMusicIndex = 0;
+            
+            fetch('script/get_music_list.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        musicFiles = data.files;
+                        shuffleArray(musicFiles);
+                    }
+                });
+            <?php endif; ?>
+
+            // 音频结束事件处理
+            audio.addEventListener('ended', function() {
+                <?php if ($random): ?>
+                if (musicFiles.length > 0) {
+                    currentMusicIndex = (currentMusicIndex + 1) % musicFiles.length;
+                    audio.src = musicFiles[currentMusicIndex].path;
+                    audio.play().catch(e => console.log('播放失败:', e));
+                    isPlaying = true;
+                    updatePlayerState();
+                }
+                <?php elseif (!$loop): ?>
+                isPlaying = false;
+                updatePlayerState();
+                <?php endif; ?>
             });
 
-            // 获取保存的播放进度
-            const savedTime = parseFloat(localStorage.getItem('musicTime') || '0');
-
-            // 定期保存播放进度
-            setInterval(() => {
-                if (!audio.paused) {
-                    localStorage.setItem('musicTime', audio.currentTime);
+            function shuffleArray(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
                 }
-            }, 1000);
+                return array;
+            }
+
+            function updatePlayerState() {
+                if (isPlaying) {
+                    player.classList.add('playing');
+                    toggle.className = 'pause-btn';
+                } else {
+                    player.classList.remove('playing');
+                    toggle.className = 'play-btn';
+                }
+            }
 
             function togglePlay() {
                 if (isPlaying) {
                     audio.pause();
-                    player.classList.remove('playing');
-                    toggle.className = 'play-btn';
                 } else {
-                    audio.play();
-                    player.classList.add('playing');
-                    toggle.className = 'pause-btn';
+                    audio.play().catch(e => console.log('播放失败:', e));
                 }
                 isPlaying = !isPlaying;
+                updatePlayerState();
             }
 
             toggle.addEventListener('click', togglePlay);
 
-            // 恢复播放进度
-            if (savedTime > 0) {
-                audio.currentTime = savedTime;
-            }
-
-            // 自动播放处理函数
-            function startPlayback() {
-                audio.play().then(() => {
-                    isPlaying = true;
-                    player.classList.add('playing');
-                    toggle.className = 'pause-btn';
-                }).catch(e => {
-                    console.log('自动播放被阻止:', e);
-                    // 如果自动播放失败，等待用户交互
-                    const resumePlay = () => {
-                        audio.play().then(() => {
-                            isPlaying = true;
-                            player.classList.add('playing');
-                            toggle.className = 'pause-btn';
-                            document.removeEventListener('click', resumePlay);
-                        });
-                    };
-                    document.addEventListener('click', resumePlay);
-                });
-            }
-
-            // 页面加载时自动开始播放
-            startPlayback();
-
-            // 监听播放结束事件
-            audio.addEventListener('ended', () => {
-                <?php if ($random && !empty($musicFiles)): ?>
-                // 随机播放功能
-                playNext();
-                <?php else: ?>
-                // 继续播放当前音频（虽然有 loop 属性，但为了保险起见）
-                if (!audio.loop) {
-                    audio.currentTime = 0;
-                    audio.play().catch(function(error) {
-                        console.log("重新播放失败:", error);
-                    });
-                }
-                <?php endif; ?>
+            // 自动播放处理
+            <?php if ($autoplay): ?>
+            audio.play().then(() => {
+                isPlaying = true;
+                updatePlayerState();
+            }).catch(e => {
+                console.log('自动播放被阻止:', e);
+                isPlaying = false;
+                updatePlayerState();
             });
-
-            // 页面关闭或刷新前保存播放进度
-            window.addEventListener('beforeunload', () => {
-                localStorage.setItem('musicTime', audio.currentTime);
-            });
-
-            <?php if ($random && !empty($musicFiles)): ?>
-            // 随机播放功能
-            const musicFiles = <?= json_encode($musicFiles) ?>;
-            let currentIndex = 0;
-
-            function playNext() {
-                currentIndex = Math.floor(Math.random() * musicFiles.length);
-                audio.src = musicFiles[currentIndex];
-                startPlayback();
-            }
             <?php endif; ?>
 
             // 监听页面可见性变化
@@ -227,49 +192,6 @@ class MusicPlayer {
                     audio.play();
                 }
             });
-
-            const musicPlayer = document.querySelector('.music-player');
-            let hideTimeout;
-
-            function showMusicPlayer() {
-                musicPlayer.classList.remove('hidden');
-                clearTimeout(hideTimeout);
-                hideTimeout = setTimeout(() => {
-                    if (!isMouseOverPlayer) {
-                        musicPlayer.classList.add('hidden');
-                    }
-                }, 5000);
-            }
-
-            let isMouseOverPlayer = false;
-
-            // 监听鼠标移动
-            document.addEventListener('mousemove', showMusicPlayer);
-
-            // 监听触摸事件
-            document.addEventListener('touchstart', showMusicPlayer);
-
-            // 监听鼠标悬停在播放器上的情况
-            musicPlayer.addEventListener('mouseenter', () => {
-                isMouseOverPlayer = true;
-                showMusicPlayer();
-            });
-
-            musicPlayer.addEventListener('mouseleave', () => {
-                isMouseOverPlayer = false;
-                showMusicPlayer();
-            });
-
-            // 初始显示播放器
-            showMusicPlayer();
-
-            // 在点击播放器按钮时重置计时器
-            musicPlayer.querySelectorAll('button').forEach(btn => {
-                btn.addEventListener('click', showMusicPlayer);
-            });
-
-            // 键盘操作时显示播放器
-            document.addEventListener('keydown', showMusicPlayer);
         });
         </script>
         <?php
