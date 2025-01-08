@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/path_utils.php';
 session_start();
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     die(json_encode(['success' => false, 'message' => '未登录']));
@@ -9,9 +10,7 @@ if (!isset($_POST['file']) || empty($_POST['file'])) {
 }
 
 // 获取文件路径并进行安全检查
-$filePath = $_POST['file'];
-$filePath = str_replace('\\', '/', $filePath);
-$filePath = preg_replace('#/+#', '/', $filePath);
+$filePath = normalizeMusicPath($_POST['file']);
 
 // 确保文件路径在音乐目录下
 if (strpos($filePath, '/assets/music/') !== 0) {

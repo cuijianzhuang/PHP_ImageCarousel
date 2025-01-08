@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/path_utils.php';
 session_start();
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     die(json_encode(['success' => false, 'message' => '未登录']));
@@ -13,11 +14,7 @@ if (is_dir($musicDir)) {
     foreach ($files as $file) {
         $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
         if (in_array($ext, $allowedExtensions)) {
-            // 规范化路径格式
-            $path = '/assets/music/' . $file;
-            $path = str_replace('\\', '/', $path);
-            $path = preg_replace('#/+#', '/', $path);
-            
+            $path = normalizeMusicPath('/assets/music/' . $file);
             $musicFiles[] = [
                 'name' => $file,
                 'path' => $path

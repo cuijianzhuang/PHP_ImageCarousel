@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/script/path_utils.php';
 session_start();
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     header('Location: login.php');
@@ -38,9 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // 规范化文件路径
     $musicFile = isset($_POST['background_music']['file']) ? 
         trim($_POST['background_music']['file']) : '/assets/music/background.mp3';
-    // 确保路径使用正斜杠，移除多余的斜杠
-    $musicFile = str_replace('\\', '/', $musicFile);
-    $musicFile = preg_replace('#/+#', '/', $musicFile);
+    $musicFile = normalizeMusicPath($musicFile);
     
     $config['background_music'] = [
         'enabled' => isset($_POST['enableMusic']) ? true : false,
@@ -468,20 +467,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script>
     function updateVolumeValue(value) {
+        // 更新显示的音量值
         document.getElementById('volumeValue').textContent = Math.round(value * 100) + '%';
         
         // 使用 BroadcastChannel 发送消息到所有页面
         const volumeChannel = new BroadcastChannel('volumeControl');
+        const volume = parseFloat(value);
         volumeChannel.postMessage({
             type: 'volumeChange',
-            volume: parseFloat(value)
+            volume: volume
         });
         
         // 更新当前页面的音乐播放器（如果存在）
         const bgMusic = document.getElementById('bgMusic');
         if (bgMusic) {
-            bgMusic.volume = parseFloat(value);
-            localStorage.setItem('musicVolume', value);
+            bgMusic.volume = volume;
+            localStorage.setItem('musicVolume', volume);
         }
     }
 
@@ -635,7 +636,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             });
     });
 
-    // 页面加载时初始化音量显示
+    // 确保在页面加载完成后初始化音量显示
     document.addEventListener('DOMContentLoaded', function() {
         const volumeInput = document.querySelector('input[name="background_music[volume]"]');
         if (volumeInput) {

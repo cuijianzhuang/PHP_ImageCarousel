@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/path_utils.php';
 session_start();
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     die(json_encode(['success' => false, 'message' => '未登录']));
@@ -88,7 +89,7 @@ if (move_uploaded_file($file['tmp_name'], $targetPath)) {
     chmod($targetPath, 0644);
     
     // 返回相对路径
-    $relativePath = '/assets/music/' . $filename;
+    $relativePath = normalizeMusicPath('/assets/music/' . $filename);
     echo json_encode([
         'success' => true, 
         'filePath' => $relativePath,

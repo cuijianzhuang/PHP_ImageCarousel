@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/../script/path_utils.php';
+
 class MusicPlayer {
     private $config;
     
@@ -11,7 +13,7 @@ class MusicPlayer {
             return '';
         }
         
-        $musicFile = $this->config['background_music']['file'];
+        $musicFile = normalizeMusicPath($this->config['background_music']['file']);
         $volume = $this->config['background_music']['volume'] ?? 0.5;
         $loop = $this->config['background_music']['loop'] ?? true;
         $random = $this->config['background_music']['random'] ?? false;
@@ -119,17 +121,21 @@ class MusicPlayer {
             volumeChannel.onmessage = (event) => {
                 if (event.data.type === 'volumeChange') {
                     audio.volume = event.data.volume;
-                    localStorage.setItem('musicVolume', event.data.volume);
+                    // 更新音量显示（如果有的话）
+                    const volumeDisplay = document.getElementById('volumeDisplay');
+                    if (volumeDisplay) {
+                        volumeDisplay.textContent = Math.round(event.data.volume * 100) + '%';
+                    }
                 }
             };
-            
-            // 获取保存的播放进度
-            const savedTime = parseFloat(localStorage.getItem('musicTime') || '0');
 
             // 保存音量设置
             audio.addEventListener('volumechange', () => {
                 localStorage.setItem('musicVolume', audio.volume);
             });
+
+            // 获取保存的播放进度
+            const savedTime = parseFloat(localStorage.getItem('musicTime') || '0');
 
             // 定期保存播放进度
             setInterval(() => {
