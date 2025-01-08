@@ -64,27 +64,6 @@ if (is_dir($directory)) {
     shuffle($slides);
 }
 
-// 添加文件缓存机制
-function getCachedFiles($directory) {
-    $cacheFile = __DIR__ . '/cache/files.json';
-    $cacheTime = 300; // 5分钟缓存
-
-    if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $cacheTime) {
-        return json_decode(file_get_contents($cacheFile), true);
-    }
-
-    // 原有的文件扫描逻辑
-    $files = [];
-    // ... 扫描目录代码 ...
-
-    // 保存缓存
-    if (!is_dir(__DIR__ . '/cache')) {
-        mkdir(__DIR__ . '/cache');
-    }
-    file_put_contents($cacheFile, json_encode($files));
-
-    return $files;
-}
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">

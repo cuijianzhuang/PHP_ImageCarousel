@@ -55,7 +55,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $config['enableMusic'] = $config['background_music']['enabled'];
 
     // 保存配置文件
-    if (file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE))) {
+    if (file_put_contents($configFile, json_encode($config, 
+        JSON_PRETTY_PRINT | 
+        JSON_UNESCAPED_UNICODE | 
+        JSON_UNESCAPED_SLASHES
+    ))) {
         $message = "配置已保存。";
     } else {
         $message = "保存配置失败，请检查文件权限。";

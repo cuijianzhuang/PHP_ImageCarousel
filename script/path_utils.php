@@ -10,6 +10,8 @@ function normalizeMusicPath($path) {
     if (strpos($path, '/assets/music/') !== 0) {
         $path = '/assets/music/' . basename($path);
     }
+    // 移除转义的斜杠
+    $path = str_replace('\/', '/', $path);
     return $path;
 }
 ?> 
