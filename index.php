@@ -187,9 +187,15 @@ function getCachedFiles($directory) {
             background: #000; /* 黑色背景填充空白区域 */
         }
         .controls {
-            position:absolute; bottom:30px; left:50%; transform:translateX(-50%);
-            display:flex; gap:20px; opacity:1; transition: opacity 0.5s;
-            z-index:1000;
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            opacity: 1;
+            transition: opacity 0.5s;
+            z-index: 1000;
         }
         .controls button {
             background: var(--control-bg);
@@ -501,6 +507,25 @@ function getCachedFiles($directory) {
             opacity: 1;
             transform: rotateX(0);
         }
+
+        /* 添加左右导航按钮的样式 */
+        #prevBtn, #nextBtn {
+            background: var(--control-bg);
+            color: var(--control-color);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        #prevBtn:hover, #nextBtn:hover {
+            background: var(--control-bg);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
     </style>
 </head>
 <body>
@@ -531,7 +556,9 @@ function getCachedFiles($directory) {
             <?php endforeach; ?>
         </div>
         <div class="controls" id="controls">
+            <button id="prevBtn">上一张</button>
             <button id="pauseBtn">暂停</button>
+            <button id="nextBtn">下一张</button>
         </div>
     </div>
 <?php else: ?>
@@ -807,8 +834,10 @@ function getCachedFiles($directory) {
 
         bindEvents() {
             const pauseButton = document.getElementById('pauseBtn');
+            const prevButton = document.getElementById('prevBtn');
+            const nextButton = document.getElementById('nextBtn');
 
-            // 保留键盘事件支持
+            // 键盘事件支持
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'ArrowLeft') {
                     this.handleClick('prev');
@@ -816,6 +845,19 @@ function getCachedFiles($directory) {
                     this.handleClick('next');
                 }
             });
+
+            // 添加导航按钮事件监听
+            if (prevButton) {
+                prevButton.addEventListener('click', () => {
+                    this.handleClick('prev');
+                });
+            }
+
+            if (nextButton) {
+                nextButton.addEventListener('click', () => {
+                    this.handleClick('next');
+                });
+            }
 
             if (pauseButton) {
                 pauseButton.addEventListener('click', () => {
