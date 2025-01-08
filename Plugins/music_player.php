@@ -17,6 +17,7 @@ class MusicPlayer {
         $volume = $this->config['background_music']['volume'] ?? 0.5;
         $loop = $this->config['background_music']['loop'] ?? true;
         $random = $this->config['background_music']['random'] ?? false;
+        $autoplay = $this->config['background_music']['autoplay'] ?? true;
         
         ob_start();
         ?>
@@ -104,8 +105,8 @@ class MusicPlayer {
             const player = document.getElementById('musicPlayer');
             const toggle = document.getElementById('musicToggle');
             
-            // 设置默认状态为播放
-            let isPlaying = true;
+            // 设置默认状态
+            let isPlaying = <?= $autoplay ? 'true' : 'false' ?>;
             
             // 设置初始音量
             audio.volume = <?= $volume ?>; // 直接使用 PHP 变量设置初始音量
@@ -185,8 +186,15 @@ class MusicPlayer {
                 });
             }
 
+            // 如果配置为自动播放，则尝试自动播放
+            <?php if ($autoplay): ?>
             // 页面加载时自动开始播放
             startPlayback();
+            <?php else: ?>
+            // 不自动播放时，更新UI状态
+            player.classList.remove('playing');
+            toggle.className = 'play-btn';
+            <?php endif; ?>
 
             // 监听播放结束事件
             audio.addEventListener('ended', () => {
