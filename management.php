@@ -37,6 +37,93 @@ function getFilePath($fileName, $directory) {
     }
 }
 
+// 添加配置同步函数
+function syncConfig() {
+    global $config, $configFile;
+    
+    // 获取文件锁
+    $lockFile = __DIR__ . '/config.lock';
+    $lockHandle = fopen($lockFile, 'w+');
+    
+    if (!flock($lockHandle, LOCK_EX)) {
+        fclose($lockHandle);
+        return false;
+    }
+    
+    try {
+        // 重新读取配置文件，以防在此期间有其他更改
+        $currentConfig = json_decode(file_get_contents($configFile), true);
+        if (!is_array($currentConfig)) {
+            $currentConfig = [];
+        }
+        
+        // 扫描实际文件
+        $realFiles = [];
+        $directories = [
+            __DIR__ . '/assets/',
+            __DIR__ . '/assets/showimg/'
+        ];
+        
+        foreach ($directories as $dir) {
+            if (!is_dir($dir)) continue;
+            
+            $files = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($dir),
+                RecursiveIteratorIterator::LEAVES_ONLY
+            );
+            
+            foreach ($files as $file) {
+                if ($file->isDir() || $file->getFilename() === '.' || $file->getFilename() === '..') continue;
+                
+                $filename = $file->getFilename();
+                $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                
+                // 只处理允许的文件类型
+                if (!in_array($ext, $GLOBALS['allowedExtensions'])) continue;
+                
+                // 检查文件是否在 showimg 目录中
+                $isEnabled = strpos($file->getPathname(), '/assets/showimg/') !== false;
+                $realFiles[$filename] = $isEnabled;
+            }
+        }
+        
+        // 更新配置
+        $currentConfig['enabledFiles'] = array_merge(
+            $currentConfig['enabledFiles'] ?? [],
+            $realFiles
+        );
+        
+        // 移除不存在的文件
+        foreach ($currentConfig['enabledFiles'] as $filename => $enabled) {
+            if (!isset($realFiles[$filename])) {
+                unset($currentConfig['enabledFiles'][$filename]);
+            }
+        }
+        
+        // 保存更新后的配置
+        $saveSuccess = file_put_contents($configFile, 
+            json_encode($currentConfig, 
+                JSON_PRETTY_PRINT | 
+                JSON_UNESCAPED_UNICODE | 
+                JSON_UNESCAPED_SLASHES
+            )
+        );
+        
+        if ($saveSuccess) {
+            $config = $currentConfig; // 更新全局配置
+            return true;
+        }
+        
+    } catch (Exception $e) {
+        error_log("Config sync error: " . $e->getMessage());
+    } finally {
+        flock($lockHandle, LOCK_UN);
+        fclose($lockHandle);
+    }
+    
+    return false;
+}
+
 // 上传文件处理
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['uploadFile']) && !isset($_POST['saveConfigSettings']) && !isset($_POST['saveEnabledFiles'])) {
     $showimgDirectory = $directory . 'showimg/';
@@ -61,7 +148,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['uploadFile']) && !is
 
         if (in_array($ext, $allowedExtensions)) {
             if (move_uploaded_file($tmpName, $targetFilePath)) {
+                chmod($targetFilePath, 0644);
                 $config['enabledFiles'][basename($uploadFileName)] = true;
+                
+                // 同步配置
+                if (!syncConfig()) {
+                    error_log("Failed to sync config after file upload: " . basename($uploadFileName));
+                }
+                
                 $files[] = basename($uploadFileName);
             }
         }
@@ -91,11 +185,18 @@ if (isset($_GET['delete'])) {
     $file_to_delete = basename($_GET['delete']);
     $file_path = getFilePath($file_to_delete, $directory);
     if (file_exists($file_path)) {
-        unlink($file_path);
-        unset($config['enabledFiles'][$file_to_delete]);
-        // 保存更新后的配置
-        file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        $message = "文件 '$file_to_delete' 已删除。";
+        if (unlink($file_path)) {
+            unset($config['enabledFiles'][$file_to_delete]);
+            
+            // 同步配置
+            if (!syncConfig()) {
+                error_log("Failed to sync config after file deletion: " . $file_to_delete);
+            }
+            
+            $message = "文件 '$file_to_delete' 已删除。";
+        } else {
+            $message = "删除文件失败。";
+        }
     } else {
         $message = "文件不存在或已被删除。";
     }
@@ -107,13 +208,18 @@ if (isset($_POST['batchDelete']) && isset($_POST['deleteFiles'])) {
     foreach ($_POST['deleteFiles'] as $fileToDelete) {
         $filePath = getFilePath($fileToDelete, $directory);
         if (file_exists($filePath)) {
-            unlink($filePath);
-            unset($config['enabledFiles'][$fileToDelete]);
-            $filesDeleted++;
+            if (unlink($filePath)) {
+                unset($config['enabledFiles'][$fileToDelete]);
+                $filesDeleted++;
+            }
         }
     }
-    // 保存更新后的配置
-    file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    
+    // 同步配置
+    if (!syncConfig()) {
+        error_log("Failed to sync config after batch deletion");
+    }
+    
     $message = "已删除 $filesDeleted 个文件。";
 }
 
@@ -286,7 +392,7 @@ $viewMode = $config['viewMode'];
 
 // 获取文件统计信息
 function getFileStats() {
-    global $config; // 添加对全局 config 的访问
+    global $config;
     
     $stats = [
         'total_files' => 0,
@@ -307,7 +413,6 @@ function getFileStats() {
     
     // 用于跟踪已处理的文件，避免重复计算
     $processedFiles = [];
-    $enabledCount = 0;
     
     foreach ($directories as $dir) {
         if (!file_exists($dir)) continue;
@@ -344,14 +449,12 @@ function getFileStats() {
             $stats['file_types'][$ext]['size'] += $fileSize;
             $stats['total_files']++;
             $stats['total_size'] += $fileSize;
+            
+            // 统计启用的文件
+            if (isset($config['enabledFiles'][$filename]) && $config['enabledFiles'][$filename]) {
+                $stats['enabled_files']++;
+            }
         }
-    }
-    
-    // 单独计算启用的文件数量
-    if (isset($config['enabledFiles']) && is_array($config['enabledFiles'])) {
-        $stats['enabled_files'] = count(array_filter($config['enabledFiles'], function($enabled) {
-            return $enabled === true;
-        }));
     }
     
     return $stats;
@@ -1234,8 +1337,11 @@ function formatFileSize($bytes) {
             <p>没有匹配的媒体文件</p>
         <?php else: ?>
             <div style="margin-bottom: 15px;">
-                总文件数量: <?= $totalFiles ?> 个文件 | 
-                展示文件数量: <?= count(array_filter($config['enabledFiles'], function($enabled) { return $enabled; })) ?> 个文件
+                <?php
+                $fileStats = getFileStats();
+                echo "总文件数量: {$fileStats['total_files']} 个文件 | ";
+                echo "展示文件数量: {$fileStats['enabled_files']} 个文件";
+                ?>
             </div>
             <!-- 文件启用状态表单 -->
             <form method="post" action="" id="enabledForm">

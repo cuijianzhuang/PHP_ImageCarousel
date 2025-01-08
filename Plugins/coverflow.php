@@ -328,6 +328,95 @@ shuffle($enabledFiles);
                 min-width: 250px;
             }
         }
+
+        /* 添加放大查看样式 */
+        .fullscreen-view {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 2000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .fullscreen-view.active {
+            opacity: 1;
+        }
+        
+        .fullscreen-content {
+            max-width: 95vw;
+            max-height: 95vh;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            box-sizing: border-box;
+        }
+        
+        .fullscreen-content img,
+        .fullscreen-content video {
+            max-width: calc(100vw - 80px);
+            max-height: calc(100vh - 80px);
+            object-fit: contain;
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            width: auto;
+            height: auto;
+        }
+        
+        .fullscreen-close {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 2001;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E");
+            background-size: 24px;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        
+        .fullscreen-close:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .fullscreen-content {
+                padding: 20px;
+            }
+            
+            .fullscreen-content img,
+            .fullscreen-content video {
+                max-width: calc(100vw - 40px);
+                max-height: calc(100vh - 40px);
+            }
+            
+            .fullscreen-close {
+                width: 36px;
+                height: 36px;
+                background-size: 20px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -352,6 +441,13 @@ shuffle($enabledFiles);
         <button class="control-btn" id="nextBtn">⟩</button>
     </div>
 
+    <div class="fullscreen-view" id="fullscreenView">
+        <div class="fullscreen-content">
+            <button class="fullscreen-close" id="fullscreenClose" aria-label="关闭"></button>
+            <div id="fullscreenContainer"></div>
+        </div>
+    </div>
+
     <script>
         const files = <?php echo json_encode($enabledFiles); ?>;
         const coverflowContainer = document.getElementById('coverflow');
@@ -373,11 +469,27 @@ shuffle($enabledFiles);
                     video.muted = true;
                     video.loop = true;
                     item.appendChild(video);
+                    
+                    // 为视频添加点击事件
+                    video.addEventListener('click', (e) => {
+                        if (index === currentIndex) {
+                            e.stopPropagation();
+                            showFullscreen(file);
+                        }
+                    });
                 } else {
                     const img = document.createElement('img');
                     img.src = '../' + file.path;
                     img.alt = file.name;
                     item.appendChild(img);
+                    
+                    // 为图片添加点击事件
+                    img.addEventListener('click', (e) => {
+                        if (index === currentIndex) {
+                            e.stopPropagation();
+                            showFullscreen(file);
+                        }
+                    });
                 }
 
                 item.addEventListener('click', () => {
@@ -390,7 +502,6 @@ shuffle($enabledFiles);
                 coverflowContainer.appendChild(item);
             });
             
-            // 确保初始显示文件名
             if (files.length > 0) {
                 filenameDisplay.textContent = files[0].name;
             }
@@ -715,6 +826,104 @@ shuffle($enabledFiles);
             document.addEventListener('wheel', () => {
                 showUI();
             });
+        });
+
+        // 添加放大查看相关函数
+        const fullscreenView = document.getElementById('fullscreenView');
+        const fullscreenContainer = document.getElementById('fullscreenContainer');
+        const fullscreenClose = document.getElementById('fullscreenClose');
+        
+        function showFullscreen(file) {
+            fullscreenContainer.innerHTML = '';
+            
+            if (file.type === 'mp4' || file.type === 'webm' || file.type === 'ogg') {
+                const video = document.createElement('video');
+                video.src = '../' + file.path;
+                video.controls = true;
+                video.autoplay = true;
+                // 添加加载事件以确保正确计算尺寸
+                video.addEventListener('loadedmetadata', () => {
+                    adjustContentSize(video);
+                });
+                fullscreenContainer.appendChild(video);
+            } else {
+                const img = document.createElement('img');
+                img.src = '../' + file.path;
+                img.alt = file.name;
+                // 添加加载事件以确保正确计算尺寸
+                img.addEventListener('load', () => {
+                    adjustContentSize(img);
+                });
+                fullscreenContainer.appendChild(img);
+            }
+            
+            fullscreenView.style.display = 'flex';
+            setTimeout(() => fullscreenView.classList.add('active'), 10);
+            
+            // 暂停自动播放
+            if (isPlaying) {
+                stopAutoplay();
+            }
+        }
+        
+        function closeFullscreen() {
+            fullscreenView.classList.remove('active');
+            setTimeout(() => {
+                fullscreenView.style.display = 'none';
+                fullscreenContainer.innerHTML = '';
+            }, 300);
+            
+            // 恢复自动播放
+            if (!isPlaying) {
+                startAutoplay();
+            }
+        }
+        
+        // 添加关闭事件监听
+        fullscreenClose.addEventListener('click', closeFullscreen);
+        fullscreenView.addEventListener('click', (e) => {
+            if (e.target === fullscreenView) {
+                closeFullscreen();
+            }
+        });
+        
+        // 添加键盘事件支持
+        document.addEventListener('keydown', (e) => {
+            if (fullscreenView.style.display === 'flex') {
+                if (e.key === 'Escape') {
+                    closeFullscreen();
+                }
+            }
+        });
+
+        // 添加内容尺寸调整函数
+        function adjustContentSize(element) {
+            const viewport = {
+                width: window.innerWidth - (window.innerWidth > 768 ? 80 : 40),
+                height: window.innerHeight - (window.innerWidth > 768 ? 80 : 40)
+            };
+            
+            const ratio = element.naturalWidth ? 
+                element.naturalWidth / element.naturalHeight :
+                element.videoWidth / element.videoHeight;
+            
+            if (ratio > viewport.width / viewport.height) {
+                // 如果内容更宽，以宽度为基准
+                element.style.width = viewport.width + 'px';
+                element.style.height = (viewport.width / ratio) + 'px';
+            } else {
+                // 如果内容更高，以高度为基准
+                element.style.height = viewport.height + 'px';
+                element.style.width = (viewport.height * ratio) + 'px';
+            }
+        }
+        
+        // 添加窗口大小变化监听
+        window.addEventListener('resize', () => {
+            const content = fullscreenContainer.querySelector('img, video');
+            if (content && fullscreenView.style.display === 'flex') {
+                adjustContentSize(content);
+            }
         });
     </script>
 
