@@ -40,94 +40,94 @@ function getFilePath($fileName, $directory) {
 // 添加配置同步函数
 function syncConfig() {
     global $config, $configFile;
-    
+
     // 获取文件锁
     $lockFile = __DIR__ . '/config.lock';
     $lockHandle = fopen($lockFile, 'w+');
-    
+
     if (!flock($lockHandle, LOCK_EX)) {
         fclose($lockHandle);
         return false;
     }
-    
+
     try {
         // 重新读取配置文件，以防在此期间有其他更改
         $currentConfig = json_decode(file_get_contents($configFile), true);
         if (!is_array($currentConfig)) {
             $currentConfig = [];
         }
-        
+
         // 扫描实际文件
         $realFiles = [];
         $directories = [
             __DIR__ . '/assets/',
             __DIR__ . '/assets/showimg/'
         ];
-        
+
         foreach ($directories as $dir) {
             if (!is_dir($dir)) continue;
-            
+
             $files = new RecursiveIteratorIterator(
                 new RecursiveDirectoryIterator($dir),
                 RecursiveIteratorIterator::LEAVES_ONLY
             );
-            
+
             foreach ($files as $file) {
                 if ($file->isDir() || $file->getFilename() === '.' || $file->getFilename() === '..') continue;
-                
+
                 $filename = $file->getFilename();
                 $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-                
+
                 // 只处理允许的文件类型
                 if (!in_array($ext, $GLOBALS['allowedExtensions'])) continue;
-                
+
                 // 检查文件是否在 showimg 目录中
                 $isEnabled = strpos($file->getPathname(), '/assets/showimg/') !== false;
                 $realFiles[$filename] = $isEnabled;
             }
         }
-        
+
         // 更新配置
         $currentConfig['enabledFiles'] = array_merge(
             $currentConfig['enabledFiles'] ?? [],
             $realFiles
         );
-        
+
         // 移除不存在的文件
         foreach ($currentConfig['enabledFiles'] as $filename => $enabled) {
             if (!isset($realFiles[$filename])) {
                 unset($currentConfig['enabledFiles'][$filename]);
             }
         }
-        
+
         // 保存更新后的配置
-        $saveSuccess = file_put_contents($configFile, 
-            json_encode($currentConfig, 
-                JSON_PRETTY_PRINT | 
-                JSON_UNESCAPED_UNICODE | 
+        $saveSuccess = file_put_contents($configFile,
+            json_encode($currentConfig,
+                JSON_PRETTY_PRINT |
+                JSON_UNESCAPED_UNICODE |
                 JSON_UNESCAPED_SLASHES
             )
         );
-        
+
         if ($saveSuccess) {
             $config = $currentConfig; // 更新全局配置
             return true;
         }
-        
+
     } catch (Exception $e) {
         error_log("Config sync error: " . $e->getMessage());
     } finally {
         flock($lockHandle, LOCK_UN);
         fclose($lockHandle);
     }
-    
+
     return false;
 }
 
 // 上传文件处理
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['uploadFile']) && !isset($_POST['saveConfigSettings']) && !isset($_POST['saveEnabledFiles'])) {
     $showimgDirectory = $directory . 'showimg/';
-    
+
     // 确保showimg目录存在
     if (!is_dir($showimgDirectory)) {
         mkdir($showimgDirectory, 0777, true);
@@ -140,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['uploadFile']) && !is
     for ($i = 0; $i < $fileCount; $i++) {
         $uploadFileName = is_array($_FILES['uploadFile']['name']) ? $_FILES['uploadFile']['name'][$i] : $_FILES['uploadFile']['name'];
         $tmpName = is_array($_FILES['uploadFile']['tmp_name']) ? $_FILES['uploadFile']['tmp_name'][$i] : $_FILES['uploadFile']['tmp_name'];
-        
+
         if (empty($uploadFileName) || empty($tmpName)) continue;
 
         $targetFilePath = $showimgDirectory . basename($uploadFileName);
@@ -150,12 +150,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['uploadFile']) && !is
             if (move_uploaded_file($tmpName, $targetFilePath)) {
                 chmod($targetFilePath, 0644);
                 $config['enabledFiles'][basename($uploadFileName)] = true;
-                
+
                 // 同步配置
                 if (!syncConfig()) {
                     error_log("Failed to sync config after file upload: " . basename($uploadFileName));
                 }
-                
+
                 $files[] = basename($uploadFileName);
             }
         }
@@ -164,15 +164,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['uploadFile']) && !is
     // 保存配置文件
     if (!empty($files)) {
         file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        $message = count($files) > 1 ? 
-            "成功上传 " . count($files) . " 个文件" : 
+        $message = count($files) > 1 ?
+            "成功上传 " . count($files) . " 个文件" :
             "文件 '" . $files[0] . "' 上传成功";
     } else {
         $message = "没有文件被上传或文件类型不支持";
     }
 
     // 如果是Ajax请求，返回JSON响应
-    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
+    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) &&
         strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
         header('Content-Type: application/json');
         echo json_encode(['message' => $message]);
@@ -187,12 +187,12 @@ if (isset($_GET['delete'])) {
     if (file_exists($file_path)) {
         if (unlink($file_path)) {
             unset($config['enabledFiles'][$file_to_delete]);
-            
+
             // 同步配置
             if (!syncConfig()) {
                 error_log("Failed to sync config after file deletion: " . $file_to_delete);
             }
-            
+
             $message = "文件 '$file_to_delete' 已删除。";
         } else {
             $message = "删除文件失败。";
@@ -214,12 +214,12 @@ if (isset($_POST['batchDelete']) && isset($_POST['deleteFiles'])) {
             }
         }
     }
-    
+
     // 同步配置
     if (!syncConfig()) {
         error_log("Failed to sync config after batch deletion");
     }
-    
+
     $message = "已删除 $filesDeleted 个文件。";
 }
 
@@ -230,7 +230,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['saveEnabledFiles'])) 
 
     $lockFile = __DIR__ . '/config.lock';
     $lockHandle = fopen($lockFile, 'w+');
-    
+
     if (flock($lockHandle, LOCK_EX)) {
         try {
             // 确保showimg目录存在
@@ -241,33 +241,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['saveEnabledFiles'])) 
 
             $config = json_decode(file_get_contents($configFile), true);
             if (!is_array($config)) $config = [];
-            
+
             foreach ($displayFiles as $file) {
                 $currentEnabled = isset($config['enabledFiles'][$file]) ? $config['enabledFiles'][$file] : true;
                 $newEnabled = in_array($file, $enabledFilesPost);
-                
+
                 if ($currentEnabled !== $newEnabled) {
                     $sourcePath = $currentEnabled ? $showimgDir . $file : $directory . $file;
                     $targetPath = $newEnabled ? $showimgDir . $file : $directory . $file;
-                    
+
                     if (file_exists($sourcePath)) {
                         rename($sourcePath, $targetPath);
                     }
-                    
+
                     $config['enabledFiles'][$file] = $newEnabled;
                 }
             }
 
             // 保存时确保使用 UTF-8 编码
-            $saveSuccess = file_put_contents($configFile, 
-                json_encode($config, 
-                    JSON_PRETTY_PRINT | 
-                    JSON_UNESCAPED_UNICODE | 
-                    JSON_UNESCAPED_SLASHES
-                )
-            ) !== false;
-            
-            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
+            $saveSuccess = file_put_contents($configFile,
+                    json_encode($config,
+                        JSON_PRETTY_PRINT |
+                        JSON_UNESCAPED_UNICODE |
+                        JSON_UNESCAPED_SLASHES
+                    )
+                ) !== false;
+
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) &&
                 strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
                 header('Content-Type: application/json; charset=utf-8');
                 echo json_encode([
@@ -279,11 +279,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['saveEnabledFiles'])) 
                 exit;
             }
         } catch (Exception $e) {
-            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) &&
                 strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
                 header('Content-Type: application/json; charset=utf-8');
                 echo json_encode([
-                    'success' => false, 
+                    'success' => false,
                     'message' => '保存配置失败'
                 ], JSON_UNESCAPED_UNICODE);
                 flock($lockHandle, LOCK_UN);
@@ -291,14 +291,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['saveEnabledFiles'])) 
                 exit;
             }
         }
-        
+
         flock($lockHandle, LOCK_UN);
     } else {
-        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) &&
             strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
             header('Content-Type: application/json; charset=utf-8');
             echo json_encode([
-                'success' => false, 
+                'success' => false,
                 'message' => '系统繁忙，请稍后重试'
             ], JSON_UNESCAPED_UNICODE);
             fclose($lockHandle);
@@ -350,16 +350,16 @@ $sortOrder = $_GET['order'] ?? 'asc'; // 默认升序
 usort($files, function($a, $b) use ($config, $sortBy, $sortOrder, $directory) {
     $enabledA = isset($config['enabledFiles'][$a]) ? $config['enabledFiles'][$a] : true;
     $enabledB = isset($config['enabledFiles'][$b]) ? $config['enabledFiles'][$b] : true;
-    
+
     // 首先按启用状态排序
     if ($enabledA !== $enabledB) {
         return $enabledA ? -1 : 1;
     }
-    
+
     // 然后按选择的条件排序
     $fileA = getFilePath($a, $directory);
     $fileB = getFilePath($b, $directory);
-    
+
     switch($sortBy) {
         case 'size':
             $comp = filesize($fileA) - filesize($fileB);
@@ -373,7 +373,7 @@ usort($files, function($a, $b) use ($config, $sortBy, $sortOrder, $directory) {
         default: // name
             $comp = strcmp($a, $b);
     }
-    
+
     return $sortOrder === 'asc' ? $comp : -$comp;
 });
 
@@ -393,50 +393,50 @@ $viewMode = $config['viewMode'];
 // 获取文件统计信息
 function getFileStats() {
     global $config;
-    
+
     $stats = [
         'total_files' => 0,
         'total_size' => 0,
         'enabled_files' => 0,
         'file_types' => []
     ];
-    
+
     $directories = [
         __DIR__ . '/assets/',
         __DIR__ . '/assets/showimg/'
     ];
-    
+
     $allowedExtensions = [
         'jpeg','jpg','png','gif','webp','bmp','tiff','tif','heic','heif',
         'mp4','avi','mov','wmv','flv','mkv','webm','ogg','m4v','mpeg','mpg','3gp'
     ];
-    
+
     // 用于跟踪已处理的文件，避免重复计算
     $processedFiles = [];
-    
+
     foreach ($directories as $dir) {
         if (!file_exists($dir)) continue;
-        
+
         $files = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($dir),
             RecursiveIteratorIterator::LEAVES_ONLY
         );
-        
+
         foreach ($files as $file) {
             if ($file->isDir() || $file->getFilename() === '.' || $file->getFilename() === '..') continue;
-            
+
             $filename = $file->getFilename();
             $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-            
+
             // 跳过不允许的文件类型
             if (!in_array($ext, $allowedExtensions)) continue;
-            
+
             // 如果文件已经处理过，跳过
             if (in_array($filename, $processedFiles)) continue;
-            
+
             $processedFiles[] = $filename;
             $fileSize = $file->getSize();
-            
+
             // 更新文件类型统计
             if (!isset($stats['file_types'][$ext])) {
                 $stats['file_types'][$ext] = [
@@ -444,19 +444,19 @@ function getFileStats() {
                     'size' => 0
                 ];
             }
-            
+
             $stats['file_types'][$ext]['count']++;
             $stats['file_types'][$ext]['size'] += $fileSize;
             $stats['total_files']++;
             $stats['total_size'] += $fileSize;
-            
+
             // 统计启用的文件
             if (isset($config['enabledFiles'][$filename]) && $config['enabledFiles'][$filename]) {
                 $stats['enabled_files']++;
             }
         }
     }
-    
+
     return $stats;
 }
 
@@ -481,76 +481,263 @@ function formatFileSize($bytes) {
     <title>文件管理</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        :root {
+            --primary-color: #2196F3;
+            --success-color: #4CAF50;
+            --danger-color: #ff4444;
+            --warning-color: #ff9800;
+            --light-bg: #f8f9fa;
+            --dark-text: #333;
+            --mid-text: #666;
+            --light-text: #999;
+            --border-color: #e0e0e0;
+            --shadow: 0 2px 8px rgba(0,0,0,0.1);
+            --border-radius: 8px;
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
-            font-family: Arial, sans-serif; background:#eef; margin:0; padding:0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 0;
+            color: var(--dark-text);
+            line-height: 1.5;
         }
+
         header {
-            background:#333; color:#fff; padding:10px; display:flex; justify-content:space-between; align-items:center;
+            background: #262b33;
+            color: #fff;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
+
         header a {
-            color:#fff; text-decoration:none; margin-left:10px; font-weight:bold;
+            color: #fff;
+            text-decoration: none;
+            margin-left: 20px;
+            font-weight: 500;
+            transition: opacity 0.2s;
         }
+
+        header a:hover {
+            opacity: 0.8;
+        }
+
         header form, header a {
-            display:inline-block;
+            display: inline-block;
         }
+
         .wrapper {
             max-width: 1400px;
-            margin: 20px auto;
+            margin: 30px auto;
             padding: 0 30px;
         }
+
         .upload-area, .config-form, .search-form {
-            background:#fff; padding:20px; margin-bottom:20px;
-            box-shadow:0 0 10px rgba(0,0,0,.1); border-radius:5px;
+            background: #fff;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+            border-radius: var(--border-radius);
+            transition: var(--transition);
         }
+
         .message {
-            margin-bottom:10px; color:green;
+            margin-bottom: 15px;
+            padding: 12px 20px;
+            background: rgba(76, 175, 80, 0.1);
+            border-left: 4px solid var(--success-color);
+            border-radius: 4px;
+            color: var(--success-color);
         }
+
         .files-container {
-            background:#fff; padding:20px; box-shadow:0 0 10px rgba(0,0,0,.1); border-radius:5px;
-            overflow:hidden;
+            background: #fff;
+            padding: 25px;
+            box-shadow: var(--shadow);
+            border-radius: var(--border-radius);
+            overflow: hidden;
         }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tool-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .tool-btn {
+            padding: 10px 15px;
+            border-radius: 6px;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+            background-color: #f5f5f5;
+            color: var(--dark-text);
+        }
+
+        .tool-btn.primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .tool-btn.primary:hover {
+            background: #1976D2;
+        }
+
+        .tool-btn.secondary {
+            background: #f5f5f5;
+            color: var(--dark-text);
+        }
+
+        .tool-btn.secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .tool-btn.danger {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .tool-btn.danger:hover {
+            background: #cc0000;
+        }
+
+        .tool-btn.warning {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .tool-btn.warning:hover {
+            background: #f57c00;
+        }
+
+        .files-list {
+            overflow-x: auto;
+            border-radius: 8px;
+            background: #fff;
+        }
+
         .files-list table {
-            width:100%; border-collapse: collapse;
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px; /* 减小字体大小 */
         }
-        .files-list th, .files-list td {
-            padding:10px; border-bottom:1px solid #eee; text-align:left; vertical-align: middle;
+
+        .files-list th,
+        .files-list td {
+            padding: 8px 10px; /* 缩小内边距 */
+            text-align: left;
+            vertical-align: middle;
+            border-bottom: 1px solid var(--border-color);
         }
+
+        .files-list thead {
+            position: sticky;
+            top: 0;
+            background: #f5f7fa;
+            z-index: 10;
+        }
+
         .files-list th {
-            background:#f0f0f0;
+            font-weight: 500;
+            color: var(--mid-text);
         }
+
         .files-list tr:hover {
-            background:#f9f9f9;
+            background: rgba(0,0,0,0.01);
         }
+
         .files-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 25px;
-            padding: 25px;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 20px;
+            margin-top: 15px;
+        }
+
+        .grid-item {
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .grid-item:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .grid-thumbnail {
+            height: 150px;
+            background: #f0f2f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .grid-thumbnail img,
+        .grid-thumbnail video {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
         }
 
         .file-item {
             background: #fff;
-            border: 1px solid #eee;
-            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
             padding: 20px;
             position: relative;
-            transition: all 0.3s ease;
+            transition: var(--transition);
             display: flex;
             flex-direction: column;
             height: 100%;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
         }
 
         .file-item:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
 
         .file-item .media-container {
             aspect-ratio: 16/9;
             overflow: hidden;
             border-radius: 6px;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             background: #f5f5f5;
             position: relative;
         }
@@ -565,8 +752,8 @@ function formatFileSize($bytes) {
 
         .file-item .filename {
             font-size: 14px;
-            color: #333;
-            margin: 8px 0;
+            color: var(--dark-text);
+            margin: 8px 0 15px;
             word-break: break-all;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -578,62 +765,82 @@ function formatFileSize($bytes) {
         .file-item .action-links {
             margin-top: auto;
             display: flex;
-            gap: 8px;
-            justify-content: center;
+            gap: 10px;
+            justify-content: space-between;
         }
+
         .enable-checkbox {
-            transform:scale(1.2);
-            margin-right:5px;
+            transform: scale(1.2);
+            margin-right: 5px;
         }
+
         .pagination {
-            text-align:center;
-            margin:30px 0;
+            text-align: center;
+            margin: 30px 0;
             display: flex;
             justify-content: center;
-            gap: 10px;
+            gap: 8px;
         }
+
         .pagination a, .pagination span {
-            display:inline-block; padding:8px 16px; margin:0 5px;
-            text-decoration:none; background:#fff; border:1px solid #eee; border-radius:8px; color:#444;
-            transition: all 0.2s ease;
+            display: inline-block;
+            padding: 8px 16px;
+            text-decoration: none;
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--dark-text);
+            transition: var(--transition);
         }
+
         .pagination a:hover {
-            background:#f8f9fa;
+            background: var(--light-bg);
             border-color: #ddd;
         }
+
         .pagination .current {
-            background:#2196F3; color:#fff; border-color:#2196F3;
+            background: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
         }
+
         .preview-btn {
-            background:#4CAF50;
-            color:#fff;
-            padding:5px;
-            border-radius:3px;
-            text-decoration:none;
-            font-size:14px;
-            display:inline-block;
-            margin-bottom:5px;
+            background: var(--success-color);
+            color: #fff;
+            padding: 8px 15px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 14px;
+            display: inline-block;
+            transition: var(--transition);
         }
+
         .preview-btn:hover {
-            background:#45a049;
+            background: #45a049;
         }
+
         .delete-link {
-            color:#fff;
-            background: #ff4444;
-            padding:5px;
-            border-radius:3px;
-            text-decoration:none;
-            font-size:14px;
-            display:inline-block;
+            color: #fff;
+            background: var(--danger-color);
+            padding: 8px 15px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 14px;
+            display: inline-block;
+            transition: var(--transition);
         }
+
         .delete-link:hover {
-            background:#cc0000;
+            background: #cc0000;
         }
+
         .lazy {
-            opacity:0; transition:opacity .3s;
+            opacity: 0;
+            transition: opacity 0.5s;
         }
+
         .lazy-loaded {
-            opacity:1;
+            opacity: 1;
         }
 
         /* 模态框样式 */
@@ -649,28 +856,31 @@ function formatFileSize($bytes) {
             justify-content: center;
             align-items: center;
             transition: background-color 0.3s ease;
+            backdrop-filter: blur(0);
+            transition: backdrop-filter 0.3s ease, background-color 0.3s ease;
         }
 
         .modal.show {
             background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(3px);
         }
 
         .modal-content {
             background: #fff;
-            padding: 20px;
-            border-radius: 8px;
+            padding: 25px;
+            border-radius: 12px;
             position: relative;
             max-width: 95%;
             max-height: 95vh;
             display: flex;
             flex-direction: column;
             align-items: center;
-            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            box-shadow: 0 5px 25px rgba(0,0,0,0.3);
             opacity: 0;
-            transform: scale(0.8);
+            transform: scale(0.9);
             transition: all 0.3s ease;
-            overflow: visible; /* 改为 visible，允许关闭按钮溢出 */
-            margin: 20px; /* 添加外边距，确保按钮有足够空间 */
+            overflow: visible;
+            margin: 20px;
         }
 
         .modal.show .modal-content {
@@ -682,21 +892,21 @@ function formatFileSize($bytes) {
         .modal-content video {
             max-width: 100%;
             max-height: 80vh;
-            margin-bottom: 10px;
-            border-radius: 4px;
+            margin-bottom: 15px;
+            border-radius: 6px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
 
         .modal-close {
             position: absolute;
-            top: -20px; /* 稍微上移 */
-            right: -20px; /* 稍微右移 */
+            top: -20px;
+            right: -20px;
             background: #333;
             color: #fff;
             border: none;
             border-radius: 50%;
-            width: 40px; /* 增加按钮大小 */
-            height: 40px; /* 增加按钮大小 */
+            width: 40px;
+            height: 40px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -705,7 +915,7 @@ function formatFileSize($bytes) {
             line-height: 1;
             transition: all 0.2s ease;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            z-index: 1; /* 确保按钮始终在最上层 */
+            z-index: 1;
         }
 
         .modal-close:hover {
@@ -716,65 +926,72 @@ function formatFileSize($bytes) {
         .upload-area {
             border: 2px dashed #ccc;
             border-radius: 12px;
-            padding: 30px;
+            padding: 35px;
             text-align: center;
             transition: all 0.3s ease;
             position: relative;
             margin-bottom: 30px;
         }
-        
+
         .upload-area.dragover {
-            border-color: #4CAF50;
-            background: rgba(76, 175, 80, 0.1);
+            border-color: var(--success-color);
+            background: rgba(76, 175, 80, 0.05);
         }
-        
+
         .upload-hint {
-            color: #666;
+            color: var(--mid-text);
             margin: 15px 0;
         }
-        
+
         .upload-btn {
-            background: #4CAF50;
+            background: var(--success-color);
             color: white;
             padding: 12px 24px;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
             font-size: 16px;
             transition: background 0.3s;
         }
-        
+
         .upload-btn:hover {
             background: #45a049;
         }
-        
+
         .file-preview {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
             gap: 20px;
             margin-top: 25px;
         }
-        
+
         .preview-item {
             position: relative;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
             padding: 5px;
+            transition: var(--transition);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
         }
-        
-        .preview-item img, 
+
+        .preview-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+        }
+
+        .preview-item img,
         .preview-item video {
             width: 100%;
             height: 150px;
             object-fit: cover;
             border-radius: 4px;
         }
-        
+
         .preview-remove {
             position: absolute;
             top: -8px;
             right: -8px;
-            background: #ff4444;
+            background: var(--danger-color);
             color: white;
             border: none;
             border-radius: 50%;
@@ -784,25 +1001,32 @@ function formatFileSize($bytes) {
             display: flex;
             align-items: center;
             justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: var(--transition);
         }
-        
+
+        .preview-remove:hover {
+            transform: scale(1.1);
+            background: #cc0000;
+        }
+
         .upload-progress {
             margin-top: 10px;
             background: #f0f0f0;
             border-radius: 4px;
             overflow: hidden;
         }
-        
+
         .progress-bar {
             height: 4px;
-            background: #4CAF50;
+            background: var(--success-color);
             width: 0;
             transition: width 0.3s ease;
         }
-        
+
         .progress-text {
             font-size: 12px;
-            color: #666;
+            color: var(--mid-text);
             margin-top: 4px;
         }
 
@@ -843,7 +1067,7 @@ function formatFileSize($bytes) {
         }
 
         input:checked + .slider {
-            background-color: #2196F3;
+            background-color: var(--primary-color);
         }
 
         input:checked + .slider:before {
@@ -862,111 +1086,217 @@ function formatFileSize($bytes) {
         .dashboard-stats {
             margin-bottom: 30px;
         }
-        
+
         .stats-overview {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 25px;
             margin-bottom: 30px;
         }
-        
+
         .dashboard-stats .stat-card {
             background: #fff;
             padding: 25px;
             border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            box-shadow: var(--shadow);
             transition: transform 0.2s ease;
             text-align: center;
             width: auto;
         }
-        
+
         .dashboard-stats .stat-card:hover {
             transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.08);
         }
-        
+
         .dashboard-stats .stat-card h3 {
-            margin: 0 0 10px 0;
-            color: #666;
+            margin: 0 0 15px 0;
+            color: var(--mid-text);
             font-size: 16px;
+            font-weight: 500;
         }
-        
+
         .dashboard-stats .stat-card p {
             margin: 0;
-            font-size: 24px;
-            font-weight: bold;
-            color: #333;
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--dark-text);
         }
-        
-        .dashboard-stats .file-types {
+
+        .stats-charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
             background: #fff;
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            max-width: 100%;
+            max-height: 350px; /* 控制饼图高度 */
+            display: flex;
+            flex-direction: column;
         }
-        
+
+        .chart-title {
+            margin: 0 0 15px 0;
+            color: var(--mid-text);
+            font-size: 16px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        /* 为饼图容器设置固定高度 */
+        .chart-container canvas {
+            max-height: 280px;
+            width: 100% !important;
+            height: auto !important;
+        }
+
+        .dashboard-stats .file-types {
+            background: #fff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            margin-bottom: 30px;
+        }
+
         .dashboard-stats .file-types h2 {
             margin: 0 0 20px 0;
-            color: #333;
-            font-size: 18px;
+            color: var(--dark-text);
+            font-size: 20px;
+            font-weight: 500;
         }
-        
+
         .dashboard-stats .file-types table {
             width: 100%;
             border-collapse: collapse;
             margin: 0;
         }
-        
+
         .dashboard-stats .file-types th,
         .dashboard-stats .file-types td {
-            padding: 12px;
+            padding: 12px 15px;
             text-align: left;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid var(--border-color);
         }
-        
+
         .dashboard-stats .file-types th {
-            background: #f5f5f5;
-            font-weight: bold;
-            color: #666;
+            background: var(--light-bg);
+            font-weight: 500;
+            color: var(--mid-text);
         }
-        
+
         .dashboard-stats .file-types tr:hover {
-            background: #f9f9f9;
+            background: rgba(0,0,0,0.01);
         }
-        
+
         .dashboard-stats .file-types td:last-child {
             text-align: right;
         }
 
-        /* 添加工具栏按钮样式 */
-        .tool-btn {
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 14px;
+        .search-form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .search-form h3 {
+            margin-bottom: 15px;
             font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: #4CAF50;
+        }
+
+        .search-form form {
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-form input[type="text"] {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+            transition: var(--transition);
+        }
+
+        .search-form input[type="text"]:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+        }
+
+        .search-form button {
+            padding: 10px 20px;
+            background: var(--primary-color);
             color: white;
-            transition: background-color 0.3s;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: var(--transition);
         }
 
-        .tool-btn:hover {
-            background: #45a049;
+        .search-form button:hover {
+            background: #1976D2;
         }
 
-        .tool-btn.cleanup {
-            background: #ff9800;
-        }
-
-        .tool-btn.cleanup:hover {
-            background: #f57c00;
-        }
-
-        #selectionCount {
-            color: #666;
+        .search-form a {
             margin-left: 10px;
+            color: var(--mid-text);
+            text-decoration: none;
+            padding: 10px 15px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            transition: var(--transition);
+        }
+
+        .search-form a:hover {
+            background: #e0e0e0;
+        }
+
+        .selection-info {
+            color: var(--mid-text);
+            font-weight: 500;
+        }
+
+        .selection-info.active {
+            color: var(--primary-color);
+        }
+
+        /* 导航按钮样式 */
+        .preview-nav {
+            position: absolute;
+            width: 100%;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%);
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            pointer-events: none;
+        }
+
+        .nav-btn {
+            background: rgba(0,0,0,0.5);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            transition: var(--transition);
+            pointer-events: auto;
+        }
+
+        .nav-btn:hover {
+            background: rgba(0,0,0,0.7);
+            transform: scale(1.1);
         }
 
         /* 添加清理进度对话框样式 */
@@ -976,259 +1306,302 @@ function formatFileSize($bytes) {
             left: 50%;
             transform: translate(-50%, -50%);
             background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
             z-index: 1000;
             display: none;
+            min-width: 350px;
+        }
+
+        .cleanup-dialog h3 {
+            margin-bottom: 20px;
+            color: var(--dark-text);
+            font-weight: 500;
         }
 
         .cleanup-dialog .progress {
             margin: 15px 0;
-            height: 4px;
+            height: 6px;
             background: #eee;
-            border-radius: 2px;
+            border-radius: 3px;
             overflow: hidden;
         }
 
         .cleanup-dialog .progress-bar {
             height: 100%;
-            background: #4CAF50;
+            background: var(--success-color);
             width: 0;
-            transition: width 0.3s;
         }
 
-        /* 工具栏样式 */
-        .toolbar {
-            background: #fff;
-            padding: 20px 25px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            margin-bottom: 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .tool-group {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-
-        .tool-btn {
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: #4CAF50;
-            color: white;
-            transition: background-color 0.3s;
-        }
-
-        .tool-btn:hover {
-            background: #45a049;
-        }
-
-        .tool-btn.primary {
-            background: #4CAF50;
-        }
-
-        .tool-btn.primary:hover {
-            background: #43A047;
-        }
-
-        .tool-btn.secondary {
-            background: #2196F3;
-        }
-
-        .tool-btn.secondary:hover {
-            background: #1E88E5;
-        }
-
-        .tool-btn.danger {
-            background: #F44336;
-        }
-
-        .tool-btn.danger:hover {
-            background: #E53935;
-        }
-
-        .tool-btn.warning {
-            background: #FF9800;
-        }
-
-        .tool-btn.warning:hover {
-            background: #F57C00;
-        }
-
-        .selection-info {
-            padding: 6px 12px;
-            background: #f5f5f5;
-            border-radius: 4px;
-            color: #666;
-            font-size: 14px;
-        }
-
-        /* 当选中文件时高亮显示 */
-        .selection-info.active {
-            background: #E3F2FD;
-            color: #1976D2;
-            font-weight: 500;
-        }
-
-        /* 复选框样式 */
-        .select-all-checkbox {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-        }
-
-        input[type="checkbox"][name="deleteFiles[]"] {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-            vertical-align: middle;
-        }
-
-        /* 表格样式优化 */
-        .files-list table th:first-child,
-        .files-list table td:first-child {
-            width: 40px;
-            text-align: center;
-            padding: 8px;
-        }
-
-        /* 添加饼图容器样式 */
-        .stats-charts {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 30px;
-            margin: 30px 0;
-        }
-        
-        .chart-container {
-            background: #fff;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            min-height: 300px;
-        }
-        
-        .chart-title {
-            font-size: 16px;
-            color: #333;
-            margin-bottom: 15px;
-            text-align: center;
-        }
-
-        .sort-link {
-            color: #333;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .sort-link:hover {
-            color: #2196F3;
-        }
-
-        .files-list th {
-            position: relative;
-            padding-right: 20px;
-        }
-
-        .preview-nav {
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            transform: translateY(-50%);
-            display: flex;
-            justify-content: space-between;
-            padding: 0 20px;
-            pointer-events: none;
-        }
-
-        .nav-btn {
-            background: rgba(0, 0, 0, 0.5);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            font-size: 24px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            pointer-events: auto;
-            opacity: 0.7;
-        }
-
-        .nav-btn:hover {
-            background: rgba(0, 0, 0, 0.8);
-            opacity: 1;
-            transform: scale(1.1);
-        }
-
-        .modal-content:hover .nav-btn {
-            opacity: 1;
-        }
-
-        #previewContainer {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            position: relative;
-            overflow: hidden; /* 添加此行 */
-        }
-
-        #previewContainer img {
-            max-width: 100%;
-            max-height: calc(95vh - 40px); /* 减去padding空间 */
-            object-fit: contain;
-            margin: 0;
-        }
-
-        #previewContainer video {
-            max-width: 100%;
-            max-height: calc(95vh - 40px);
-            object-fit: contain;
-            margin: 0;
+        #cleanupStatus {
+            margin-top: 15px;
+            color: var(--mid-text);
         }
 
         .loading {
-            color: #666;
+            color: var(--mid-text);
             font-size: 16px;
             padding: 20px;
         }
-        
+
         .error-message {
-            color: #ff4444;
+            color: var(--danger-color);
             font-size: 16px;
             padding: 20px;
+        }
+
+        /* 新增样式 */
+        .view-switcher {
+            display: flex;
+            margin-left: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .view-switcher a {
+            padding: 8px 15px;
+            background: #f5f5f5;
+            color: var(--mid-text);
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .view-switcher a:hover {
+            background: #e0e0e0;
+        }
+
+        .view-switcher a.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .thumbnail-container {
+            position: relative;
+            width: 100px;
+            height: 60px;
+            overflow: hidden;
+            border-radius: 4px;
+            background: #f5f5f5;
+        }
+
+        .file-type-badge {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+        }
+
+        .file-type-badge.video {
+            background: rgba(255, 87, 34, 0.7);
+        }
+
+        .file-type-badge.image {
+            background: rgba(33, 150, 243, 0.7);
+        }
+
+        .file-checkbox {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 1;
+        }
+
+        .file-checkbox input {
+            transform: scale(1.2);
+        }
+
+        .file-details {
+            margin-bottom: 15px;
+        }
+
+        .file-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--mid-text);
+            margin-top: 5px;
+        }
+
+        .file-stats-summary {
+            margin-bottom: 20px;
+            padding: 10px 15px;
+            background: var(--light-bg);
+            border-radius: 4px;
+            color: var(--mid-text);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 50px 0;
+            color: var(--mid-text);
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            color: #ddd;
+        }
+
+        .empty-state p {
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .clear-search-btn {
+            display: inline-block;
+            padding: 8px 15px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 4px;
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .clear-search-btn:hover {
+            background: #1976D2;
+        }
+
+        .filename-cell {
+            max-width: 200px; /* 控制文件名宽度 */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 12px; /* 更小的字体 */
+        }
+
+        .pagination-ellipsis {
+            display: inline-block;
+            padding: 8px 16px;
+            color: var(--mid-text);
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .wrapper {
+                padding: 0 15px;
+                margin: 20px auto;
+            }
+
+            .stats-overview,
+            .stats-charts {
+                grid-template-columns: 1fr;
+            }
+
+            .files-grid {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            }
+
+            .tool-group {
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .toolbar {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+
+            .selection-info {
+                margin-top: 10px;
+            }
+
+            .files-list th,
+            .files-list td {
+                padding: 10px 8px;
+            }
+
+            .search-form form {
+                flex-direction: column;
+            }
+
+            .search-form a {
+                margin: 10px 0 0 0;
+                text-align: center;
+            }
+
+            .stats-charts {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-container {
+                max-height: 300px;
+            }
+            
+            .chart-container canvas {
+                max-height: 230px;
+            }
+        }
+
+        @media (max-width: 991px) {
+            /* 平板设备优化 */
+            .filename-cell {
+                max-width: 150px;
+            }
+            
+            .files-list {
+                font-size: 12px;
+            }
+            
+            .action-links {
+                flex-direction: column;
+                gap: 3px;
+            }
+            
+            .action-links a {
+                font-size: 11px;
+                padding: 3px 6px;
+            }
+        }
+
+        /* 文件列表中元数据显示优化 */
+        .file-meta {
+            font-size: 11px;
+            color: var(--mid-text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-meta i {
+            font-size: 10px;
+            opacity: 0.7;
+        }
+
+        .file-size {
+            white-space: nowrap;
+            font-weight: 500;
+        }
+
+        /* 优化表格内操作按钮 */
+        .action-links {
+            white-space: nowrap;
+            display: flex;
+            gap: 5px;
+        }
+
+        .action-links a {
+            font-size: 12px;
+            padding: 4px 8px;
         }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 <body>
 <header>
-    <div>文件管理</div>
+    <div><i class="fas fa-file-alt"></i> 文件管理系统</div>
     <div>
-        <a href="settings.php">系统设置</a>
-        <a href="index.php">返回首页</a>
+        <a href="settings.php"><i class="fas fa-cog"></i> 系统设置</a>
+        <a href="index.php"><i class="fas fa-home"></i> 返回首页</a>
         <form action="logout.php" method="post" style="display:inline;">
-            <button type="submit" style="background:#c33; border:none; color:#fff; padding:5px 10px; cursor:pointer; border-radius:3px;">
-                登出
+            <button type="submit" style="background:#cc3333; border:none; color:#fff; padding:8px 15px; cursor:pointer; border-radius:4px; font-size:14px;">
+                <i class="fas fa-sign-out-alt"></i> 登出
             </button>
         </form>
     </div>
@@ -1239,62 +1612,68 @@ function formatFileSize($bytes) {
     <div class="dashboard-stats">
         <div class="stats-overview">
             <div class="stat-card">
-                <h3>总文件数</h3>
+                <h3><i class="fas fa-file"></i> 总文件数</h3>
                 <p><?php echo $fileStats['total_files']; ?> 个文件</p>
             </div>
             <div class="stat-card">
-                <h3>展示文件数</h3>
+                <h3><i class="fas fa-photo-video"></i> 展示文件数</h3>
                 <p><?php echo $fileStats['enabled_files']; ?> 个文件</p>
             </div>
             <div class="stat-card">
-                <h3>总存储空间</h3>
+                <h3><i class="fas fa-database"></i> 总存储空间</h3>
                 <p><?php echo number_format($fileStats['total_size'] / 1024 / 1024, 2); ?> MB</p>
             </div>
         </div>
 
         <div class="stats-charts">
             <div class="chart-container">
-                <h3 class="chart-title">文件类型分布</h3>
+                <h3 class="chart-title"><i class="fas fa-chart-pie"></i> 文件类型分布</h3>
                 <canvas id="fileTypesChart"></canvas>
             </div>
             <div class="chart-container">
-                <h3 class="chart-title">存储空间占用</h3>
+                <h3 class="chart-title"><i class="fas fa-hdd"></i> 存储空间占用</h3>
                 <canvas id="storageChart"></canvas>
             </div>
         </div>
 
         <div class="file-types">
-            <h2>文件类型统计</h2>
+            <h2><i class="fas fa-list"></i> 文件类型统计</h2>
             <table>
                 <thead>
-                    <tr>
-                        <th>文件类型</th>
-                        <th>数量</th>
-                        <th>总大小</th>
-                    </tr>
+                <tr>
+                    <th>文件类型</th>
+                    <th>数量</th>
+                    <th>总大小</th>
+                </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($fileStats['file_types'] as $type => $data): ?>
+                <?php foreach ($fileStats['file_types'] as $type => $data): ?>
                     <tr>
-                        <td>.<?php echo htmlspecialchars($type); ?></td>
+                        <td><i class="fas <?php echo in_array($type, ['jpg', 'jpeg', 'png', 'gif', 'webp']) ? 'fa-image' : 'fa-video'; ?>"></i> .<?php echo htmlspecialchars($type); ?></td>
                         <td><?php echo $data['count']; ?> 个文件</td>
                         <td><?php echo number_format($data['size'] / 1024 / 1024, 2); ?> MB</td>
                     </tr>
-                    <?php endforeach; ?>
+                <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
     </div>
 
-    <?php if ($message) echo "<p class='message'>" . htmlspecialchars($message) . "</p>"; ?>
+    <?php if ($message): ?>
+        <div class="message">
+            <i class="fas fa-info-circle"></i> <?php echo htmlspecialchars($message); ?>
+        </div>
+    <?php endif; ?>
 
     <!-- 上传区域 -->
     <div class="upload-area" id="dropZone">
-        <h3>上传文件（图片或视频）</h3>
+        <h3><i class="fas fa-cloud-upload-alt"></i> 上传文件（图片或视频）</h3>
         <p class="upload-hint">点击选择或拖拽文件到此处</p>
         <form id="uploadForm" action="" method="post" enctype="multipart/form-data">
             <input type="file" name="uploadFile[]" id="fileInput" multiple accept="image/*,video/*" style="display: none;">
-            <button type="button" id="selectFiles" class="upload-btn">选择文件</button>
+            <button type="button" id="selectFiles" class="upload-btn">
+                <i class="fas fa-file-upload"></i> 选择文件
+            </button>
         </form>
         <!-- 文件预览区域 -->
         <div id="filePreview" class="file-preview"></div>
@@ -1303,12 +1682,12 @@ function formatFileSize($bytes) {
     </div>
 
     <div class="search-form">
-        <h3>搜索文件</h3>
+        <h3><i class="fas fa-search"></i> 搜索文件</h3>
         <form action="" method="get">
             <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="输入文件名关键字">
-            <button type="submit">搜索</button>
+            <button type="submit"><i class="fas fa-search"></i> 搜索</button>
             <?php if ($search): ?>
-                <a href="?">清除搜索</a>
+                <a href="?"><i class="fas fa-times"></i> 清除搜索</a>
             <?php endif; ?>
         </form>
     </div>
@@ -1328,20 +1707,31 @@ function formatFileSize($bytes) {
                 <button type="button" id="cleanupFiles" class="tool-btn warning">
                     <i class="fas fa-broom"></i> 清理未用文件
                 </button>
+                <div class="view-switcher">
+                    <a href="?view=list" class="<?= $viewMode === 'list' ? 'active' : '' ?>">
+                        <i class="fas fa-list"></i>
+                    </a>
+                    <a href="?view=grid" class="<?= $viewMode === 'grid' ? 'active' : '' ?>">
+                        <i class="fas fa-th"></i>
+                    </a>
+                </div>
             </div>
             <div class="selection-info">
                 <span id="selectionCount"></span>
             </div>
         </div>
         <?php if (empty($displayFiles)): ?>
-            <p>没有匹配的媒体文件</p>
+            <div class="empty-state">
+                <i class="fas fa-search"></i>
+                <p>没有匹配的媒体文件</p>
+                <?php if ($search): ?>
+                    <a href="?" class="clear-search-btn">清除搜索</a>
+                <?php endif; ?>
+            </div>
         <?php else: ?>
-            <div style="margin-bottom: 15px;">
-                <?php
-                $fileStats = getFileStats();
-                echo "总文件数量: {$fileStats['total_files']} 个文件 | ";
-                echo "展示文件数量: {$fileStats['enabled_files']} 个文件";
-                ?>
+            <div class="file-stats-summary">
+                <i class="fas fa-info-circle"></i> 总文件数量: <strong><?= $fileStats['total_files'] ?></strong> 个文件 |
+                展示文件数量: <strong><?= $fileStats['enabled_files'] ?></strong> 个文件
             </div>
             <!-- 文件启用状态表单 -->
             <form method="post" action="" id="enabledForm">
@@ -1355,35 +1745,35 @@ function formatFileSize($bytes) {
                     <div class="files-list">
                         <table>
                             <tr>
-                                <th><input type="checkbox" id="selectAllInTable" class="select-all-checkbox"></th>
-                                <th>缩略图</th>
+                                <th width="40"><input type="checkbox" id="selectAllInTable" class="select-all-checkbox"></th>
+                                <th width="120">缩略图</th>
                                 <th>
                                     <a href="?sort=name&order=<?= $sortBy === 'name' && $sortOrder === 'asc' ? 'desc' : 'asc' ?>" class="sort-link">
                                         文件名 <?= $sortBy === 'name' ? ($sortOrder === 'asc' ? '↑' : '↓') : '' ?>
                                     </a>
                                 </th>
-                                <th>
+                                <th width="80">
                                     <a href="?sort=type&order=<?= $sortBy === 'type' && $sortOrder === 'asc' ? 'desc' : 'asc' ?>" class="sort-link">
                                         类型 <?= $sortBy === 'type' ? ($sortOrder === 'asc' ? '↑' : '↓') : '' ?>
                                     </a>
                                 </th>
-                                <th>
+                                <th width="100">
                                     <a href="?sort=size&order=<?= $sortBy === 'size' && $sortOrder === 'asc' ? 'desc' : 'asc' ?>" class="sort-link">
                                         大小 <?= $sortBy === 'size' ? ($sortOrder === 'asc' ? '↑' : '↓') : '' ?>
                                     </a>
                                 </th>
-                                <th>
+                                <th width="140">
                                     <a href="?sort=date&order=<?= $sortBy === 'date' && $sortOrder === 'asc' ? 'desc' : 'asc' ?>" class="sort-link">
                                         修改日期 <?= $sortBy === 'date' ? ($sortOrder === 'asc' ? '↑' : '↓') : '' ?>
                                     </a>
                                 </th>
-                                <th>轮播展示</th>
-                                <th>操作</th>
+                                <th width="100">轮播展示</th>
+                                <th width="160">操作</th>
                             </tr>
                             <?php foreach ($displayFiles as $file):
                                 $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-                                $fileUrl = (isset($config['enabledFiles'][$file]) && $config['enabledFiles'][$file]) 
-                                    ? 'assets/showimg/' . $file 
+                                $fileUrl = (isset($config['enabledFiles'][$file]) && $config['enabledFiles'][$file])
+                                    ? 'assets/showimg/' . $file
                                     : 'assets/' . $file;
                                 $isVideo = in_array($ext, ['mp4', 'webm', 'ogg']);
                                 $enabled = isset($config['enabledFiles'][$file]) ? $config['enabledFiles'][$file] : true;
@@ -1393,28 +1783,36 @@ function formatFileSize($bytes) {
                                         <input type="checkbox" name="deleteFiles[]" value="<?= htmlspecialchars($file) ?>">
                                     </td>
                                     <td>
-                                        <?php if ($isVideo): ?>
-                                            <video data-src="<?= htmlspecialchars($fileUrl) ?>" preload="none" muted class="lazy" style="max-width:100px;max-height:60px;"></video>
-                                        <?php else: ?>
-                                            <img data-src="<?= htmlspecialchars($fileUrl) ?>" alt="" class="lazy" style="max-width:100px;max-height:60px;">
-                                        <?php endif; ?>
+                                        <div class="thumbnail-container">
+                                            <?php if ($isVideo): ?>
+                                                <video data-src="<?= htmlspecialchars($fileUrl) ?>" preload="none" muted class="lazy" style="max-width:100px;max-height:60px;"></video>
+                                                <span class="file-type-badge video"><i class="fas fa-video"></i></span>
+                                            <?php else: ?>
+                                                <img data-src="<?= htmlspecialchars($fileUrl) ?>" alt="" class="lazy" style="max-width:100px;max-height:60px;">
+                                                <span class="file-type-badge image"><i class="fas fa-image"></i></span>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
-                                    <td><?= htmlspecialchars($file) ?></td>
-                                    <td><?= htmlspecialchars(pathinfo($file, PATHINFO_EXTENSION)) ?></td>
+                                    <td class="filename-cell" title="<?= htmlspecialchars($file) ?>"><?= htmlspecialchars($file) ?></td>
+                                    <td><?= htmlspecialchars(strtoupper(pathinfo($file, PATHINFO_EXTENSION))) ?></td>
                                     <td><?= formatFileSize(filesize(getFilePath($file, $directory))) ?></td>
                                     <td><?= date('Y-m-d H:i', filemtime(getFilePath($file, $directory))) ?></td>
                                     <td>
                                         <label class="switch">
-                                            <input type="checkbox" class="enable-checkbox" name="enabled[]" 
-                                                   value="<?= htmlspecialchars($file) ?>" 
-                                                   <?= $enabled ? 'checked' : '' ?> 
+                                            <input type="checkbox" class="enable-checkbox" name="enabled[]"
+                                                   value="<?= htmlspecialchars($file) ?>"
+                                                <?= $enabled ? 'checked' : '' ?>
                                                    onchange="document.getElementById('enabledForm').submit()">
                                             <span class="slider round"></span>
                                         </label>
                                     </td>
                                     <td class="action-links">
-                                        <a href="#" class="preview-btn" data-file="<?= htmlspecialchars($fileUrl) ?>" data-type="<?= $isVideo ? 'video' : 'image' ?>">预览</a>
-                                        <a href="?<?= $search ? 'search=' . urlencode($search) . '&' : '' ?>delete=<?= urlencode($file) ?>" class="delete-link" onclick="return confirm('确定删除此文件？')">删除</a>
+                                        <a href="#" class="preview-btn" data-file="<?= htmlspecialchars($fileUrl) ?>" data-type="<?= $isVideo ? 'video' : 'image' ?>">
+                                            <i class="fas fa-eye"></i> 预览
+                                        </a>
+                                        <a href="?<?= $search ? 'search=' . urlencode($search) . '&' : '' ?>delete=<?= urlencode($file) ?>" class="delete-link" onclick="return confirm('确定删除此文件？')">
+                                            <i class="fas fa-trash"></i> 删除
+                                        </a>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -1424,55 +1822,66 @@ function formatFileSize($bytes) {
                     <div class="files-grid">
                         <?php foreach ($displayFiles as $file):
                             $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-                            $fileUrl = (isset($config['enabledFiles'][$file]) && $config['enabledFiles'][$file]) 
-                                ? 'assets/showimg/' . $file 
+                            $fileUrl = (isset($config['enabledFiles'][$file]) && $config['enabledFiles'][$file])
+                                ? 'assets/showimg/' . $file
                                 : 'assets/' . $file;
                             $isVideo = in_array($ext, ['mp4', 'webm', 'ogg']);
                             $enabled = isset($config['enabledFiles'][$file]) ? $config['enabledFiles'][$file] : true;
                             ?>
                             <div class="file-item">
-                                <label class="switch" style="position:absolute;top:10px;right:10px;z-index:1;">
-                                    <input type="checkbox" class="enable-checkbox" name="enabled[]" 
-                                           value="<?= htmlspecialchars($file) ?>" 
-                                           <?= $enabled ? 'checked' : '' ?>>
+                                <div class="file-checkbox">
+                                    <input type="checkbox" name="deleteFiles[]" value="<?= htmlspecialchars($file) ?>">
+                                </div>
+
+                                <label class="switch" style="position:absolute;top:15px;right:15px;z-index:1;">
+                                    <input type="checkbox" class="enable-checkbox" name="enabled[]"
+                                           value="<?= htmlspecialchars($file) ?>"
+                                        <?= $enabled ? 'checked' : '' ?>>
                                     <span class="slider round"></span>
                                 </label>
-                                
+
                                 <div class="media-container">
                                     <?php if ($isVideo): ?>
-                                        <video data-src="<?= htmlspecialchars($fileUrl) ?>" 
-                                               preload="none" muted loop 
+                                        <video data-src="<?= htmlspecialchars($fileUrl) ?>"
+                                               preload="none" muted loop
                                                class="lazy"
-                                               onmouseover="this.play()" 
+                                               onmouseover="this.play()"
                                                onmouseout="this.pause();this.currentTime=0;">
                                         </video>
+                                        <span class="file-type-badge video"><i class="fas fa-video"></i></span>
                                     <?php else: ?>
-                                        <img data-src="<?= htmlspecialchars($fileUrl) ?>" 
+                                        <img data-src="<?= htmlspecialchars($fileUrl) ?>"
                                              alt="" class="lazy">
+                                        <span class="file-type-badge image"><i class="fas fa-image"></i></span>
                                     <?php endif; ?>
                                 </div>
-                                
-                                <div class="filename" title="<?= htmlspecialchars($file) ?>">
-                                    <?= htmlspecialchars($file) ?>
+
+                                <div class="file-details">
+                                    <div class="filename" title="<?= htmlspecialchars($file) ?>">
+                                        <?= htmlspecialchars($file) ?>
+                                    </div>
+                                    <div class="file-meta">
+                                        <span class="file-size"><?= formatFileSize(filesize(getFilePath($file, $directory))) ?></span>
+                                        <span class="file-date"><?= date('Y-m-d', filemtime(getFilePath($file, $directory))) ?></span>
+                                    </div>
                                 </div>
-                                
+
                                 <div class="action-links">
-                                    <a href="#" class="preview-btn" 
-                                       data-file="<?= htmlspecialchars($fileUrl) ?>" 
+                                    <a href="#" class="preview-btn"
+                                       data-file="<?= htmlspecialchars($fileUrl) ?>"
                                        data-type="<?= $isVideo ? 'video' : 'image' ?>">
-                                        预览
+                                        <i class="fas fa-eye"></i> 预览
                                     </a>
-                                    <a href="?<?= $search ? 'search=' . urlencode($search) . '&' : '' ?>delete=<?= urlencode($file) ?>" 
-                                       class="delete-link" 
+                                    <a href="?<?= $search ? 'search=' . urlencode($search) . '&' : '' ?>delete=<?= urlencode($file) ?>"
+                                       class="delete-link"
                                        onclick="return confirm('确定删除此文件？')">
-                                        删除
+                                        <i class="fas fa-trash"></i> 删除
                                     </a>
                                 </div>
                             </div>
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
-                <!-- Remove the submit button since we're using auto-submit -->
             </form>
 
             <?php if ($totalPages > 1): ?>
@@ -1480,21 +1889,35 @@ function formatFileSize($bytes) {
                     <?php
                     $searchParam = $search ? 'search=' . urlencode($search) . '&' : '';
                     if ($currentPage > 1): ?>
-                        <a href="?<?= $searchParam ?>page=1">«</a>
-                        <a href="?<?= $searchParam ?>page=<?= $currentPage - 1 ?>">‹</a>
+                        <a href="?<?= $searchParam ?>page=1"><i class="fas fa-angle-double-left"></i></a>
+                        <a href="?<?= $searchParam ?>page=<?= $currentPage - 1 ?>"><i class="fas fa-angle-left"></i></a>
                     <?php endif; ?>
 
-                    <?php for ($p = 1; $p <= $totalPages; $p++): ?>
+                    <?php
+                    // 限制显示的页码数量
+                    $startPage = max(1, $currentPage - 2);
+                    $endPage = min($totalPages, $currentPage + 2);
+
+                    if ($startPage > 1) {
+                        echo '<span class="pagination-ellipsis">...</span>';
+                    }
+
+                    for ($p = $startPage; $p <= $endPage; $p++): ?>
                         <?php if ($p == $currentPage): ?>
                             <span class="current"><?= $p ?></span>
                         <?php else: ?>
                             <a href="?<?= $searchParam ?>page=<?= $p ?>"><?= $p ?></a>
                         <?php endif; ?>
-                    <?php endfor; ?>
+                    <?php endfor;
+
+                    if ($endPage < $totalPages) {
+                        echo '<span class="pagination-ellipsis">...</span>';
+                    }
+                    ?>
 
                     <?php if ($currentPage < $totalPages): ?>
-                        <a href="?<?= $searchParam ?>page=<?= $currentPage + 1 ?>">›</a>
-                        <a href="?<?= $searchParam ?>page=<?= $totalPages ?>">»</a>
+                        <a href="?<?= $searchParam ?>page=<?= $currentPage + 1 ?>"><i class="fas fa-angle-right"></i></a>
+                        <a href="?<?= $searchParam ?>page=<?= $totalPages ?>"><i class="fas fa-angle-double-right"></i></a>
                     <?php endif; ?>
                 </div>
             <?php endif; ?>
@@ -1507,12 +1930,16 @@ function formatFileSize($bytes) {
     <div class="modal-content">
         <button class="modal-close" id="modalClose">×</button>
         <div id="previewContainer"></div>
+        <div class="preview-nav">
+            <button class="nav-btn prev" onclick="showPreview(currentPreviewIndex - 1)">‹</button>
+            <button class="nav-btn next" onclick="showPreview(currentPreviewIndex + 1)">›</button>
+        </div>
     </div>
 </div>
 
 <!-- 添加清理进度对话框 -->
 <div id="cleanupDialog" class="cleanup-dialog">
-    <h3>正在清理未使用文件</h3>
+    <h3><i class="fas fa-broom"></i> 正在清理未使用文件</h3>
     <div class="progress">
         <div class="progress-bar"></div>
     </div>
@@ -1553,7 +1980,7 @@ function formatFileSize($bytes) {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             modal.style.display = 'flex';
-            
+
             setTimeout(() => {
                 modal.classList.add('show');
                 showPreview(index);
@@ -1651,55 +2078,55 @@ function formatFileSize($bytes) {
     const selectFiles = document.getElementById('selectFiles');
     const filePreview = document.getElementById('filePreview');
     const uploadProgress = document.getElementById('uploadProgress');
-    
+
     // 点击选择文件
     selectFiles.addEventListener('click', () => fileInput.click());
-    
+
     // 处理拖拽事件
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, preventDefaults, false);
     });
-    
+
     function preventDefaults(e) {
         e.preventDefault();
         e.stopPropagation();
     }
-    
+
     ['dragenter', 'dragover'].forEach(eventName => {
         dropZone.addEventListener(eventName, () => {
             dropZone.classList.add('dragover');
         });
     });
-    
+
     ['dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, () => {
             dropZone.classList.remove('dragover');
         });
     });
-    
+
     // 处理文件
     dropZone.addEventListener('drop', e => {
         const files = e.dataTransfer.files;
         handleFiles(files);
     });
-    
+
     // 处理文件选择
     fileInput.addEventListener('change', e => {
         handleFiles(e.target.files);
     });
-    
+
     function handleFiles(files) {
         Array.from(files).forEach(file => {
             if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
                 const reader = new FileReader();
                 const previewItem = document.createElement('div');
                 previewItem.className = 'preview-item';
-                
+
                 reader.onload = e => {
-                    const preview = file.type.startsWith('image/') 
+                    const preview = file.type.startsWith('image/')
                         ? `<img src="${e.target.result}" alt="${file.name}">`
                         : `<video src="${e.target.result}" muted></video>`;
-                        
+
                     previewItem.innerHTML = `
                         ${preview}
                         <button class="preview-remove" onclick="this.parentElement.remove()">×</button>
@@ -1708,24 +2135,24 @@ function formatFileSize($bytes) {
                             <div class="progress-text">准备上传...</div>
                         </div>
                     `;
-                    
+
                     filePreview.appendChild(previewItem);
                     uploadFile(file, previewItem);
                 };
-                
+
                 reader.readAsDataURL(file);
             }
         });
     }
-    
+
     function uploadFile(file, previewItem) {
         const formData = new FormData();
         formData.append('uploadFile[]', file);
-        
+
         const xhr = new XMLHttpRequest();
         const progressBar = previewItem.querySelector('.progress-bar');
         const progressText = previewItem.querySelector('.progress-text');
-        
+
         xhr.upload.onprogress = e => {
             if (e.lengthComputable) {
                 const percent = Math.round((e.loaded / e.total) * 100);
@@ -1733,7 +2160,7 @@ function formatFileSize($bytes) {
                 progressText.textContent = `上传进度：${percent}%`;
             }
         };
-        
+
         xhr.onload = () => {
             if (xhr.status === 200) {
                 progressText.textContent = '上传完成';
@@ -1745,342 +2172,362 @@ function formatFileSize($bytes) {
                 progressBar.style.backgroundColor = '#ff4444';
             }
         };
-        
+
         xhr.onerror = () => {
             progressText.textContent = '上传错误';
             progressBar.style.backgroundColor = '#ff4444';
         };
-        
+
         xhr.open('POST', '', true);
         xhr.send(formData);
     }
 </script>
 <script>
-// 添加防抖函数
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
+    // 添加防抖函数
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
             clearTimeout(timeout);
-            func(...args);
+            timeout = setTimeout(later, wait);
         };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
+    }
 
-document.querySelectorAll('.enable-checkbox').forEach(checkbox => {
-    const debouncedHandler = debounce(function(e) {
-        const form = document.getElementById('enabledForm');
-        const formData = new FormData(form);
-        const originalState = this.checked;
-        
-        // 显示加载指示或禁用复选框
-        this.disabled = true;
-        
-        fetch(window.location.href, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                // 添加防止缓存的头部
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache',
-                'Expires': '0'
-            }
-        })
-        .then(response => {
-            // 检查响应状态码
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(data => {
-            // 即使返回失败，如果状态码是 200，我们认为操作是成功的
-            // CDN 可能会缓存响应，导致返回的失败状态
-            if (response.ok) {
-                // 保持当前状态
-                return;
-            }
-            // 只有在确实失败的情况下才恢复状态
-            this.checked = originalState;
-            console.warn('Toggle state might not be saved correctly');
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            // 只在网络错误时恢复状态和显示提示
-            this.checked = originalState;
-            // 使用更友好的错误提示
-            console.warn('网络请求失败，请检查网络连接');
-        })
-        .finally(() => {
-            this.disabled = false;
+    document.querySelectorAll('.enable-checkbox').forEach(checkbox => {
+        const debouncedHandler = debounce(function(e) {
+            const form = document.getElementById('enabledForm');
+            const formData = new FormData(form);
+            const originalState = this.checked;
+
+            // 显示加载指示或禁用复选框
+            this.disabled = true;
+
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    // 添加防止缓存的头部
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            })
+                .then(response => {
+                    // 检查响应状态码
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // 即使返回失败，如果状态码是 200，我们认为操作是成功的
+                    // CDN 可能会缓存响应，导致返回的失败状态
+                    if (response.ok) {
+                        // 保持当前状态
+                        return;
+                    }
+                    // 只有在确实失败的情况下才恢复状态
+                    this.checked = originalState;
+                    console.warn('Toggle state might not be saved correctly');
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    // 只在网络错误时恢复状态和显示提示
+                    this.checked = originalState;
+                    // 使用更友好的错误提示
+                    console.warn('网络请求失败，请检查网络连接');
+                })
+                .finally(() => {
+                    this.disabled = false;
+                });
+        }, 300);
+
+        checkbox.addEventListener('change', function(e) {
+            e.preventDefault();
+            debouncedHandler.call(this, e);
         });
-    }, 300);
-
-    checkbox.addEventListener('change', function(e) {
-        e.preventDefault();
-        debouncedHandler.call(this, e);
     });
-});
 </script>
 <script>
-// 全选和反选功能
-const selectAllBtn = document.getElementById('selectAll');
-const selectAllInTable = document.getElementById('selectAllInTable');
-const checkboxes = document.querySelectorAll('input[name="deleteFiles[]"]');
+    // 全选和反选功能
+    const selectAllBtn = document.getElementById('selectAll');
+    const selectAllInTable = document.getElementById('selectAllInTable');
+    const checkboxes = document.querySelectorAll('input[name="deleteFiles[]"]');
 
-// 工具栏全选按钮点击事件
-selectAllBtn.addEventListener('click', function() {
-    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-    checkboxes.forEach(cb => cb.checked = !allChecked);
-    if (selectAllInTable) {
-        selectAllInTable.checked = !allChecked;
-        selectAllInTable.indeterminate = false;
-    }
-    updateSelectionCount();
-});
-
-// 表格中的全选复选框变更事件
-if (selectAllInTable) {
-    selectAllInTable.addEventListener('change', function() {
-        checkboxes.forEach(cb => cb.checked = this.checked);
+    // 工具栏全选按钮点击事件
+    selectAllBtn.addEventListener('click', function() {
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        checkboxes.forEach(cb => cb.checked = !allChecked);
+        if (selectAllInTable) {
+            selectAllInTable.checked = !allChecked;
+            selectAllInTable.indeterminate = false;
+        }
         updateSelectionCount();
     });
-}
 
-// 反选按钮点击事件
-document.getElementById('invertSelection').addEventListener('click', function() {
-    checkboxes.forEach(cb => cb.checked = !cb.checked);
-    updateSelectionCount();
-});
-
-// 更新选中数量显示和全选状态
-function updateSelectionCount() {
-    const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
-    const selectionCount = document.getElementById('selectionCount');
-    const selectionInfo = document.querySelector('.selection-info');
-    
-    // 更新选中数量显示
-    if (checkedCount > 0) {
-        selectionCount.textContent = `已选择 ${checkedCount} 个文件`;
-        selectionInfo.classList.add('active');
-    } else {
-        selectionCount.textContent = '未选择文件';
-        selectionInfo.classList.remove('active');
-    }
-
-    // 更新表格全选复选框状态
+    // 表格中的全选复选框变更事件
     if (selectAllInTable) {
+        selectAllInTable.addEventListener('change', function() {
+            checkboxes.forEach(cb => cb.checked = this.checked);
+            updateSelectionCount();
+        });
+    }
+
+    // 反选按钮点击事件
+    document.getElementById('invertSelection').addEventListener('click', function() {
+        checkboxes.forEach(cb => cb.checked = !cb.checked);
+        updateSelectionCount();
+    });
+
+    // 更新选中数量显示和全选状态
+    function updateSelectionCount() {
+        const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+        const selectionCount = document.getElementById('selectionCount');
+        const selectionInfo = document.querySelector('.selection-info');
+
+        // 更新选中数量显示
+        if (checkedCount > 0) {
+            selectionCount.textContent = `已选择 ${checkedCount} 个文件`;
+            selectionInfo.classList.add('active');
+        } else {
+            selectionCount.textContent = '未选择文件';
+            selectionInfo.classList.remove('active');
+        }
+
+        // 更新表格全选复选框状态
+        if (selectAllInTable) {
+            if (checkedCount === 0) {
+                selectAllInTable.checked = false;
+                selectAllInTable.indeterminate = false;
+            } else if (checkedCount === checkboxes.length) {
+                selectAllInTable.checked = true;
+                selectAllInTable.indeterminate = false;
+            } else {
+                selectAllInTable.checked = false;
+                selectAllInTable.indeterminate = true;
+            }
+        }
+    }
+
+    // 为所有复选框添加change事件
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateSelectionCount);
+    });
+
+    // 初始化选中状态显示
+    updateSelectionCount();
+</script>
+<script>
+    // 更新选中数量显示
+    function updateSelectionCount() {
+        const checkboxes = document.querySelectorAll('input[name="deleteFiles[]"]');
+        const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+        const selectionCount = document.getElementById('selectionCount');
+        const selectionInfo = document.querySelector('.selection-info');
+
+        if (checkedCount > 0) {
+            selectionCount.textContent = `已选择 ${checkedCount} 个文件`;
+            selectionInfo.classList.add('active');
+        } else {
+            selectionCount.textContent = '未选择文件';
+            selectionInfo.classList.remove('active');
+        }
+    }
+
+    // 批量删除按钮事件
+    document.getElementById('batchDeleteBtn').addEventListener('click', function() {
+        const checkedCount = document.querySelectorAll('input[name="deleteFiles[]"]:checked').length;
         if (checkedCount === 0) {
-            selectAllInTable.checked = false;
-            selectAllInTable.indeterminate = false;
-        } else if (checkedCount === checkboxes.length) {
-            selectAllInTable.checked = true;
-            selectAllInTable.indeterminate = false;
-        } else {
-            selectAllInTable.checked = false;
-            selectAllInTable.indeterminate = true;
+            alert('请先选择要删除的文件');
+            return;
         }
-    }
-}
-
-// 为所有复选框添加change事件
-checkboxes.forEach(cb => {
-    cb.addEventListener('change', updateSelectionCount);
-});
-
-// 初始化选中状态显示
-updateSelectionCount();
-</script>
-<script>
-// 更新选中数量显示
-function updateSelectionCount() {
-    const checkboxes = document.querySelectorAll('input[name="deleteFiles[]"]');
-    const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
-    const selectionCount = document.getElementById('selectionCount');
-    const selectionInfo = document.querySelector('.selection-info');
-    
-    if (checkedCount > 0) {
-        selectionCount.textContent = `已选择 ${checkedCount} 个文件`;
-        selectionInfo.classList.add('active');
-    } else {
-        selectionCount.textContent = '未选择文件';
-        selectionInfo.classList.remove('active');
-    }
-}
-
-// 批量删除按钮事件
-document.getElementById('batchDeleteBtn').addEventListener('click', function() {
-    const checkedCount = document.querySelectorAll('input[name="deleteFiles[]"]:checked').length;
-    if (checkedCount === 0) {
-        alert('请先选择要删除的文件');
-        return;
-    }
-    if (confirm(`确定要删除选中的 ${checkedCount} 个文件吗？此操作不可恢复。`)) {
-        // 设置 batchDelete 字段为 1
-        document.getElementById('batchDeleteField').value = '1';
-        document.getElementById('enabledForm').submit();
-    }
-});
-
-// 初始化选中状态显示
-updateSelectionCount();
-</script>
-<script>
-// 清理未使用文件功能
-document.getElementById('cleanupFiles').addEventListener('click', function() {
-    if (!confirm('确定要清理未使用的文件吗？此操作不可恢复。')) {
-        return;
-    }
-
-    const dialog = document.getElementById('cleanupDialog');
-    const status = document.getElementById('cleanupStatus');
-    const progressBar = dialog.querySelector('.progress-bar');
-    
-    dialog.style.display = 'block';
-    progressBar.style.width = '0%';
-    
-    // 修改为正确的路径
-    fetch('./Plugins/cleanup.php', {
-        method: 'POST',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        credentials: 'same-origin' // 添加这行以确保发送 cookies
-    })
-    .then(response => response.json())
-    .then(data => {
-        progressBar.style.width = '100%';
-        if (data.success) {
-            status.textContent = `清理完成，共删除 ${data.count} 个未使用文件`;
-            // 显示具体删除了哪些文件
-            if (data.files && data.files.length > 0) {
-                status.textContent += `\n删除的文件：${data.files.join(', ')}`;
-            }
-            setTimeout(() => {
-                dialog.style.display = 'none';
-                location.reload();
-            }, 2000);
-        } else {
-            status.textContent = data.message || '清理失败';
-            setTimeout(() => {
-                dialog.style.display = 'none';
-            }, 2000);
+        if (confirm(`确定要删除选中的 ${checkedCount} 个文件吗？此操作不可恢复。`)) {
+            // 设置 batchDelete 字段为 1
+            document.getElementById('batchDeleteField').value = '1';
+            document.getElementById('enabledForm').submit();
         }
-    })
-    .catch(error => {
-        console.error('清理过程发生错误:', error);
-        status.textContent = '清理过程发生错误，请查看控制台';
-        progressBar.style.backgroundColor = '#ff4444';
-        setTimeout(() => {
-            dialog.style.display = 'none';
-        }, 2000);
     });
-});
 
-// 初始化选中数量显示
-updateSelectionCount();
+    // 初始化选中状态显示
+    updateSelectionCount();
 </script>
 <script>
-// 初始化文件类型饼图
-function initFileTypesChart() {
-    const fileTypes = <?php echo json_encode(array_map(function($type, $data) {
-        return [
-            'type' => $type,
-            'count' => $data['count'],
-            'size' => $data['size']
+    // 清理未使用文件功能
+    document.getElementById('cleanupFiles').addEventListener('click', function() {
+        if (!confirm('确定要清理未使用的文件吗？此操作不可恢复。')) {
+            return;
+        }
+
+        const dialog = document.getElementById('cleanupDialog');
+        const status = document.getElementById('cleanupStatus');
+        const progressBar = dialog.querySelector('.progress-bar');
+
+        dialog.style.display = 'block';
+        progressBar.style.width = '0%';
+
+        // 修改为正确的路径
+        fetch('./Plugins/cleanup.php', {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin' // 添加这行以确保发送 cookies
+        })
+            .then(response => response.json())
+            .then(data => {
+                progressBar.style.width = '100%';
+                if (data.success) {
+                    status.textContent = `清理完成，共删除 ${data.count} 个未使用文件`;
+                    // 显示具体删除了哪些文件
+                    if (data.files && data.files.length > 0) {
+                        status.textContent += `\n删除的文件：${data.files.join(', ')}`;
+                    }
+                    setTimeout(() => {
+                        dialog.style.display = 'none';
+                        location.reload();
+                    }, 2000);
+                } else {
+                    status.textContent = data.message || '清理失败';
+                    setTimeout(() => {
+                        dialog.style.display = 'none';
+                    }, 2000);
+                }
+            })
+            .catch(error => {
+                console.error('清理过程发生错误:', error);
+                status.textContent = '清理过程发生错误，请查看控制台';
+                progressBar.style.backgroundColor = '#ff4444';
+                setTimeout(() => {
+                    dialog.style.display = 'none';
+                }, 2000);
+            });
+    });
+
+    // 初始化选中数量显示
+    updateSelectionCount();
+</script>
+<script>
+    // 初始化文件类型饼图
+    function initFileTypesChart() {
+        const fileTypes = <?php echo json_encode(array_map(function($type, $data) {
+            return [
+                'type' => $type,
+                'count' => $data['count'],
+                'size' => $data['size']
+            ];
+        }, array_keys($fileStats['file_types']), array_values($fileStats['file_types']))); ?>;
+
+        // 创建自定义颜色数组
+        const chartColors = [
+            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+            '#FF9F40', '#2ECC71', '#E74C3C', '#3498DB', '#9B59B6'
         ];
-    }, array_keys($fileStats['file_types']), array_values($fileStats['file_types']))); ?>;
 
-    // 文件数量饼图
-    new Chart(document.getElementById('fileTypesChart'), {
-        type: 'pie',
-        data: {
-            labels: fileTypes.map(item => '.' + item.type),
-            datasets: [{
-                data: fileTypes.map(item => item.count),
-                backgroundColor: [
-                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
-                    '#FF9F40', '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0'
-                ]
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        font: {
-                            size: 12
+        // 检查视窗宽度，根据设备调整图例位置
+        const windowWidth = window.innerWidth;
+        const legendPosition = windowWidth <= 768 ? 'bottom' : 'right';
+
+        // 文件数量饼图
+        new Chart(document.getElementById('fileTypesChart'), {
+            type: 'pie',
+            data: {
+                labels: fileTypes.map(item => '.' + item.type),
+                datasets: [{
+                    data: fileTypes.map(item => item.count),
+                    backgroundColor: chartColors
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: legendPosition,
+                        labels: {
+                            font: {
+                                size: 10
+                            },
+                            boxWidth: 10,
+                            padding: 8
                         }
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.raw || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return `${label}: ${value} 个文件 (${percentage}%)`;
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: ${value} 个文件 (${percentage}%)`;
+                            }
                         }
                     }
                 }
             }
-        }
-    });
+        });
 
-    // 存储空间饼图
-    new Chart(document.getElementById('storageChart'), {
-        type: 'pie',
-        data: {
-            labels: fileTypes.map(item => '.' + item.type),
-            datasets: [{
-                data: fileTypes.map(item => item.size),
-                backgroundColor: [
-                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
-                    '#FF9F40', '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0'
-                ]
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        font: {
-                            size: 12
+        // 存储空间饼图
+        new Chart(document.getElementById('storageChart'), {
+            type: 'pie',
+            data: {
+                labels: fileTypes.map(item => '.' + item.type),
+                datasets: [{
+                    data: fileTypes.map(item => item.size),
+                    backgroundColor: chartColors
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: legendPosition,
+                        labels: {
+                            font: {
+                                size: 10
+                            },
+                            boxWidth: 10,
+                            padding: 8
                         }
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.raw || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            const size = (value / 1024 / 1024).toFixed(2);
-                            return `${label}: ${size} MB (${percentage}%)`;
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                const size = (value / 1024 / 1024).toFixed(2);
+                                return `${label}: ${size} MB (${percentage}%)`;
+                            }
                         }
                     }
                 }
             }
-        }
-    });
-}
+        });
+    }
 
-// 页面加载完成后初始化图表
-document.addEventListener('DOMContentLoaded', initFileTypesChart);
+    // 添加窗口大小变化监听，重新初始化图表
+    window.addEventListener('resize', function() {
+        // 销毁现有图表并重新创建
+        const charts = Chart.instances || [];
+        for (let chart of charts) {
+            chart.destroy();
+        }
+        initFileTypesChart();
+    });
+
+    // 页面加载完成后初始化图表
+    document.addEventListener('DOMContentLoaded', initFileTypesChart);
 </script>
 <script>
     const previewFiles = <?php echo json_encode(array_map(function($file) use ($config) {
-        $fileUrl = (isset($config['enabledFiles'][$file]) && $config['enabledFiles'][$file]) 
-            ? 'assets/showimg/' . $file 
+        $fileUrl = (isset($config['enabledFiles'][$file]) && $config['enabledFiles'][$file])
+            ? 'assets/showimg/' . $file
             : 'assets/' . $file;
         return [
             'url' => $fileUrl,
@@ -2092,24 +2539,24 @@ document.addEventListener('DOMContentLoaded', initFileTypesChart);
 
     function showPreview(index) {
         if (index < 0 || index >= previewFiles.length) return;
-        
+
         currentPreviewIndex = index;
         const file = previewFiles[index];
         previewContainer.innerHTML = '';
-        
+
         if (file.type === 'image') {
             const img = new Image();
             img.onload = function() {
                 previewContainer.innerHTML = ''; // 清除可能的加载提示
                 previewContainer.appendChild(img);
-                
+
                 // 更新导航按钮状态
                 updateNavButtons();
             };
             img.onerror = function() {
                 previewContainer.innerHTML = '<div class="error-message">图片加载失败</div>';
             };
-            
+
             // 添加加载提示
             previewContainer.innerHTML = '<div class="loading">加载中...</div>';
             img.src = file.url;
@@ -2121,7 +2568,7 @@ document.addEventListener('DOMContentLoaded', initFileTypesChart);
             video.style.maxWidth = '100%';
             video.style.maxHeight = 'calc(95vh - 40px)';
             previewContainer.appendChild(video);
-            
+
             // 更新导航按钮状态
             updateNavButtons();
         }
@@ -2131,7 +2578,7 @@ document.addEventListener('DOMContentLoaded', initFileTypesChart);
     function updateNavButtons() {
         const prevBtn = document.querySelector('.nav-btn.prev');
         const nextBtn = document.querySelector('.nav-btn.next');
-        
+
         if (prevBtn) {
             prevBtn.style.visibility = currentPreviewIndex > 0 ? 'visible' : 'hidden';
         }
@@ -2148,7 +2595,7 @@ document.addEventListener('DOMContentLoaded', initFileTypesChart);
             font-size: 16px;
             padding: 20px;
         }
-        
+
         .error-message {
             color: #ff4444;
             font-size: 16px;
