@@ -767,6 +767,13 @@ function formatFileSize($bytes) {
             display: flex;
             gap: 10px;
             justify-content: space-between;
+            flex-wrap: nowrap;
+        }
+
+        .file-item .action-links a {
+            flex: 1;
+            text-align: center;
+            font-size: 12px;
         }
 
         .enable-checkbox {
@@ -1584,11 +1591,75 @@ function formatFileSize($bytes) {
             white-space: nowrap;
             display: flex;
             gap: 5px;
+            flex-wrap: nowrap;
+            justify-content: center;
         }
 
         .action-links a {
             font-size: 12px;
             padding: 4px 8px;
+            flex: 1;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        /* 改进表格中的按钮对齐 */
+        .files-list .action-links {
+            justify-content: flex-start;
+        }
+
+        /* 开关按钮居中对齐 */
+        td .switch {
+            display: flex;
+            justify-content: center;
+        }
+
+        /* 移动设备优化 - 额外添加 */
+        @media (max-width: 768px) {
+            .files-list .action-links {
+                flex-direction: row;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .preview-btn, .delete-link {
+                flex: 1;
+                text-align: center;
+                min-width: 70px;
+            }
+            
+            td .switch {
+                transform: scale(0.9);
+            }
+        }
+
+        /* 列表视图中的操作按钮优化 */
+        .files-list .action-links {
+            display: flex;
+            flex-direction: row;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .files-list .action-links a {
+            width: calc(50% - 5px);
+            text-align: center;
+            white-space: nowrap;
+            font-size: 13px;
+            padding: 8px 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .files-list .action-links a i {
+            margin-right: 4px;
+        }
+        
+        /* 确保网格视图中的按钮对齐 */
+        .file-item .action-links {
+            gap: 10px;
+            margin-top: 10px;
         }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
@@ -1768,7 +1839,7 @@ function formatFileSize($bytes) {
                                     </a>
                                 </th>
                                 <th width="100">轮播展示</th>
-                                <th width="160">操作</th>
+                                <th width="200">操作</th>
                             </tr>
                             <?php foreach ($displayFiles as $file):
                                 $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
