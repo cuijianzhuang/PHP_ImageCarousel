@@ -1658,8 +1658,170 @@ function formatFileSize($bytes) {
         
         /* 确保网格视图中的按钮对齐 */
         .file-item .action-links {
+            display: flex;
             gap: 10px;
-            margin-top: 10px;
+            justify-content: center;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* 操作按钮居中和对齐样式 */
+        .action-links {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: nowrap;
+        }
+        
+        .preview-btn, .delete-link {
+            flex: 1;
+            max-width: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .preview-btn i, .delete-link i {
+            margin-right: 5px;
+        }
+        
+        td .switch {
+            display: flex;
+            justify-content: center;
+        }
+        
+        /* 确保表格中的操作列居中 */
+        .files-list td:last-child {
+            text-align: center;
+        }
+
+        /* 优化操作按钮的样式和对齐 */
+        .operations-cell {
+            text-align: center;
+            vertical-align: middle;
+        }
+        
+        .operations-cell .action-links {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 0 auto;
+            width: 100%;
+        }
+        
+        .preview-btn, .delete-link {
+            flex: 1;
+            max-width: 90px;
+            min-width: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .preview-btn i, .delete-link i {
+            margin-right: 5px;
+        }
+        
+        @media (max-width: 768px) {
+            .operations-cell .action-links {
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .preview-btn, .delete-link {
+                max-width: 100%;
+                width: 100%;
+            }
+        }
+
+        /* 统一按钮样式 */
+        .preview-btn,
+        .delete-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 12px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            text-align: center;
+            flex: 1;
+        }
+        
+        .preview-btn {
+            background: var(--success-color);
+            color: #fff;
+        }
+        
+        .preview-btn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+        
+        .delete-link {
+            background: var(--danger-color);
+            color: #fff;
+        }
+        
+        .delete-link:hover {
+            background: #cc0000;
+            transform: translateY(-2px);
+        }
+        
+        .preview-btn i, 
+        .delete-link i {
+            margin-right: 5px;
+        }
+        
+        /* 优化列表视图中的操作按钮 */
+        .operations-cell {
+            text-align: center;
+            vertical-align: middle;
+            padding: 10px 5px;
+        }
+        
+        .operations-cell .action-links {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 0 auto;
+            width: 100%;
+            max-width: 200px;
+        }
+        
+        /* 确保网格视图中的按钮样式一致 */
+        .file-item .action-links {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 10px auto 0;
+            width: 100%;
+        }
+        
+        .file-item .action-links a {
+            flex: 1;
+            min-height: 36px;
+        }
+        
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            .operations-cell .action-links {
+                flex-direction: row; /* 保持水平排列 */
+                gap: 5px;
+            }
+            
+            .preview-btn, 
+            .delete-link {
+                font-size: 13px;
+                padding: 6px 8px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .operations-cell .action-links {
+                flex-direction: column; /* 在特小屏幕上垂直排列 */
+            }
         }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
@@ -1838,8 +2000,8 @@ function formatFileSize($bytes) {
                                         修改日期 <?= $sortBy === 'date' ? ($sortOrder === 'asc' ? '↑' : '↓') : '' ?>
                                     </a>
                                 </th>
-                                <th width="100">轮播展示</th>
-                                <th width="200">操作</th>
+                                <th width="100" style="text-align:center;">轮播展示</th>
+                                <th width="200" style="text-align:center;">操作</th>
                             </tr>
                             <?php foreach ($displayFiles as $file):
                                 $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
@@ -1877,13 +2039,15 @@ function formatFileSize($bytes) {
                                             <span class="slider round"></span>
                                         </label>
                                     </td>
-                                    <td class="action-links">
-                                        <a href="#" class="preview-btn" data-file="<?= htmlspecialchars($fileUrl) ?>" data-type="<?= $isVideo ? 'video' : 'image' ?>">
-                                            <i class="fas fa-eye"></i> 预览
-                                        </a>
-                                        <a href="?<?= $search ? 'search=' . urlencode($search) . '&' : '' ?>delete=<?= urlencode($file) ?>" class="delete-link" onclick="return confirm('确定删除此文件？')">
-                                            <i class="fas fa-trash"></i> 删除
-                                        </a>
+                                    <td class="operations-cell">
+                                        <div class="action-links">
+                                            <a href="#" class="preview-btn" data-file="<?= htmlspecialchars($fileUrl) ?>" data-type="<?= $isVideo ? 'video' : 'image' ?>">
+                                                <i class="fas fa-eye"></i> 预览
+                                            </a>
+                                            <a href="?<?= $search ? 'search=' . urlencode($search) . '&' : '' ?>delete=<?= urlencode($file) ?>" class="delete-link" onclick="return confirm('确定删除此文件？')">
+                                                <i class="fas fa-trash"></i> 删除
+                                            </a>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -1937,17 +2101,19 @@ function formatFileSize($bytes) {
                                     </div>
                                 </div>
 
-                                <div class="action-links">
-                                    <a href="#" class="preview-btn"
-                                       data-file="<?= htmlspecialchars($fileUrl) ?>"
-                                       data-type="<?= $isVideo ? 'video' : 'image' ?>">
-                                        <i class="fas fa-eye"></i> 预览
-                                    </a>
-                                    <a href="?<?= $search ? 'search=' . urlencode($search) . '&' : '' ?>delete=<?= urlencode($file) ?>"
-                                       class="delete-link"
-                                       onclick="return confirm('确定删除此文件？')">
-                                        <i class="fas fa-trash"></i> 删除
-                                    </a>
+                                <div class="operations-cell">
+                                    <div class="action-links">
+                                        <a href="#" class="preview-btn"
+                                           data-file="<?= htmlspecialchars($fileUrl) ?>"
+                                           data-type="<?= $isVideo ? 'video' : 'image' ?>">
+                                            <i class="fas fa-eye"></i> 预览
+                                        </a>
+                                        <a href="?<?= $search ? 'search=' . urlencode($search) . '&' : '' ?>delete=<?= urlencode($file) ?>"
+                                           class="delete-link"
+                                           onclick="return confirm('确定删除此文件？')">
+                                            <i class="fas fa-trash"></i> 删除
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                         <?php endforeach; ?>
